@@ -129,8 +129,8 @@
     const perfil = snap.exists() ? snap.data() : null;
     if (!perfil){ await signOut(auth); showMsg("No encontramos tu perfil. Contacta al administrador.", "err"); return; }
     if (!perfil.aprobado){ await signOut(auth); showMsg("Tu cuenta aún no ha sido aprobada por un administrador.", "info"); return; }
-    // Aprobado: al panel si es admin, si no al home de la app.
-    location.replace(perfil.rol === "admin" ? "admin.html" : "Agenda Docente.dc.html");
+    // Aprobado: todos entran a la app. El admin accede al panel desde el home.
+    location.replace("Agenda Docente.dc.html");
   }
 
   $("btnLogin").onclick = async () => {
