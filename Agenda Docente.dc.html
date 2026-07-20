@@ -32,6 +32,12 @@
 
     <div style="display:flex;align-items:center;gap:14px;">
       <span style="font-size:14px;color:oklch(45% 0.02 60);">{{ greeting }}</span>
+      <sc-if value="{{ isAdmin }}">
+        <a href="admin.html" style="padding:8px 13px;border-radius:8px;border:1px solid oklch(60% 0.1 285);background:oklch(96% 0.03 285);color:oklch(45% 0.15 285);font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l7 4v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          Administrar usuarios
+        </a>
+      </sc-if>
       <div style="width:38px;height:38px;border-radius:50%;background:oklch(55% 0.09 45);display:flex;align-items:center;justify-content:center;color:oklch(98% 0.01 70);font-weight:700;font-size:15px;">{{ userInitial }}</div>
       <button onclick="{{ cerrarSesion }}" style="padding:8px 13px;border-radius:8px;border:1px solid oklch(88% 0.02 60);background:transparent;color:oklch(45% 0.02 60);font-size:13px;font-weight:600;cursor:pointer;">Salir</button>
     </div>
@@ -73,13 +79,14 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Andrea&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 class Component extends DCLogic {
-  state = { userName: '' };
+  state = { userName: '', isAdmin: false };
 
   async componentDidMount() {
     try {
       const s = await window.__agendaSession;
       const nombre = (s.perfil && s.perfil.nombre) ? s.perfil.nombre : (s.email || '');
-      this.setState({ userName: nombre });
+      const isAdmin = !!(s.perfil && s.perfil.rol === 'admin');
+      this.setState({ userName: nombre, isAdmin });
     } catch (e) {}
   }
 
@@ -88,6 +95,7 @@ class Component extends DCLogic {
     return {
       userName,
       userInitial: (userName.charAt(0) || 'D').toUpperCase(),
+      isAdmin: this.state.isAdmin,
       greeting: 'Hoy es un buen día para enseñar',
       cerrarSesion: () => window.__cerrarSesion && window.__cerrarSesion(),
       modules: [
