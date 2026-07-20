@@ -1,0 +1,23 @@
+// firebase-config.js
+// Configuración pública de Firebase. En apps web esto es público por diseño:
+// lo que protege la base de datos son las Reglas de Firestore, no estas claves.
+//
+// Este archivo exporta `app`, `auth` y `db` ya inicializados usando el SDK
+// modular de Firebase cargado por CDN (ver los <script type="module"> de cada página).
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCGwWeZOgqgwQlQw57YuM1u778v9--ct4M",
+  authDomain: "agenda-docente-dcfc9.firebaseapp.com",
+  projectId: "agenda-docente-dcfc9",
+  storageBucket: "agenda-docente-dcfc9.firebasestorage.app",
+  messagingSenderId: "622939152881",
+  appId: "1:622939152881:web:7af88915da0b7ab8322450"
+};
+
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);

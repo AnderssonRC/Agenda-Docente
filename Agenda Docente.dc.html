@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script type="module">
+  import { sessionReady, cerrarSesion } from './auth-guard.js';
+  window.__agendaSession = sessionReady;   // protege esta página y expone la sesión
+  window.__cerrarSesion = cerrarSesion;
+</script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;font-family:'Manrope',sans-serif;}
+  a{color:inherit;text-decoration:none;}
+  ::selection{background:oklch(70% 0.08 55 / 0.35);}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:oklch(96% 0.012 75);display:flex;flex-direction:column;">
+
+  <header style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px clamp(16px,4vw,40px);background:oklch(99% 0.005 75);border-bottom:1px solid oklch(88% 0.02 60);">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <img src="assets/logo.png" alt="Agenda Docente" style="width:38px;height:38px;border-radius:10px;object-fit:cover;"/>
+      <span style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:oklch(30% 0.03 50);">Agenda Docente</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:14px;">
+      <span style="font-size:14px;color:oklch(45% 0.02 60);">{{ greeting }}</span>
+      <div style="width:38px;height:38px;border-radius:50%;background:oklch(55% 0.09 45);display:flex;align-items:center;justify-content:center;color:oklch(98% 0.01 70);font-weight:700;font-size:15px;">{{ userInitial }}</div>
+      <button onclick="{{ cerrarSesion }}" style="padding:8px 13px;border-radius:8px;border:1px solid oklch(88% 0.02 60);background:transparent;color:oklch(45% 0.02 60);font-size:13px;font-weight:600;cursor:pointer;">Salir</button>
+    </div>
+  </header>
+
+  <main style="flex:1;padding:clamp(20px,4vw,36px) clamp(16px,4vw,40px) 56px;max-width:1180px;width:100%;margin:0 auto;box-sizing:border-box;">
+
+    <section style="border-radius:20px;background:linear-gradient(120deg, oklch(38% 0.06 45), oklch(52% 0.09 48));padding:clamp(26px,5vw,40px) clamp(22px,5vw,44px);position:relative;overflow:hidden;margin-bottom:32px;">
+      <div style="position:absolute;right:-40px;top:-40px;width:220px;height:220px;border-radius:50%;background:oklch(60% 0.08 50 / 0.25);"></div>
+      <div style="position:absolute;right:60px;bottom:-60px;width:140px;height:140px;border-radius:50%;background:oklch(70% 0.07 55 / 0.18);"></div>
+      <div style="position:relative;">
+        <span style="display:inline-block;background:oklch(98% 0.01 70 / 0.15);color:oklch(96% 0.01 70);font-size:13px;font-weight:600;padding:6px 14px;border-radius:999px;margin-bottom:16px;">Panel del docente</span>
+        <h1 style="font-family:'Fraunces',serif;font-size:clamp(24px,4.5vw,34px);font-weight:600;color:oklch(98% 0.01 70);margin:0 0 10px;">¡Hola, {{ userName }}!</h1>
+        <p style="font-size:clamp(14px,2.2vw,16px);color:oklch(92% 0.02 65);margin:0;max-width:520px;line-height:1.5;">Organiza tus clases, revisa la participación y da seguimiento a tus estudiantes desde un solo lugar.</p>
+      </div>
+    </section>
+
+    <h2 style="font-size:18px;font-weight:700;color:oklch(32% 0.03 50);margin:0 0 18px;">Módulos</h2>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:22px;">
+      <sc-for list="{{ modules }}" as="mod" hint-placeholder-count="3">
+        <a href="{{ mod.href }}" style="display:flex;flex-direction:column;gap:16px;background:oklch(99% 0.005 75);border:1px solid oklch(89% 0.015 60);border-radius:16px;padding:26px;box-shadow:0 1px 2px oklch(20% 0.02 50 / 0.04);transition:box-shadow .15s, transform .15s;" style-hover="box-shadow:0 8px 20px oklch(30% 0.03 50 / 0.10);transform:translateY(-2px);">
+          <div style="width:52px;height:52px;border-radius:14px;background:{{ mod.tint }};display:flex;align-items:center;justify-content:center;font-size:24px;">{{ mod.emoji }}</div>
+          <div>
+            <h3 style="font-size:18px;font-weight:700;color:oklch(30% 0.03 50);margin:0 0 6px;">{{ mod.title }}</h3>
+            <p style="font-size:14px;color:oklch(48% 0.02 55);margin:0;line-height:1.5;">{{ mod.description }}</p>
+          </div>
+          <span style="margin-top:auto;display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:oklch(42% 0.07 45);">
+            Entrar al módulo
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </a>
+      </sc-for>
+    </div>
+
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Andrea&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = { userName: '' };
+
+  async componentDidMount() {
+    try {
+      const s = await window.__agendaSession;
+      const nombre = (s.perfil && s.perfil.nombre) ? s.perfil.nombre : (s.email || '');
+      this.setState({ userName: nombre });
+    } catch (e) {}
+  }
+
+  renderVals() {
+    const userName = this.state.userName || this.props.userName || 'Docente';
+    return {
+      userName,
+      userInitial: (userName.charAt(0) || 'D').toUpperCase(),
+      greeting: 'Hoy es un buen día para enseñar',
+      cerrarSesion: () => window.__cerrarSesion && window.__cerrarSesion(),
+      modules: [
+        {
+          title: 'Creación de Clases',
+          description: 'Planifica y organiza el contenido, materiales y horarios de tus clases.',
+          emoji: '📘',
+          tint: 'oklch(88% 0.04 55)',
+          href: 'Creacion de Clases.dc.html'
+        },
+        {
+          title: 'Participación de Clase',
+          description: 'Registra la asistencia y participación de tus estudiantes en cada sesión.',
+          emoji: '🙋',
+          tint: 'oklch(85% 0.05 40)',
+          href: 'Participacion de Clase.dc.html'
+        },
+        {
+          title: 'Seguimiento de Estudiantes',
+          description: 'Consulta el progreso y desempeño individual de cada estudiante.',
+          emoji: '📈',
+          tint: 'oklch(87% 0.045 70)',
+          href: 'Seguimiento de Estudiantes.dc.html'
+        }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

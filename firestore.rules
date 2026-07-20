@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ¿El que hace la petición es admin aprobado?
+    function esAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin'
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+    }
+
+    // ---- Perfiles de usuario ----
+    match /usuarios/{uid} {
+
+      // Leer: el propio usuario o un admin.
+      allow get: if request.auth != null && (request.auth.uid == uid || esAdmin());
+      // Listar toda la colección: solo admin (lo usa el panel).
+      allow list: if esAdmin();
+
+      // Crear el propio perfil al registrarse: forzamos que quede
+      // pendiente (aprobado:false) y como docente. Nadie se autoaprueba
+      // ni se hace admin desde el cliente.
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.aprobado == false
+        && request.resource.data.rol == 'docente'
+        && request.resource.data.email == request.auth.token.email;
+
+      // Cambiar aprobado / rol / eliminar perfiles: solo admin.
+      allow update, delete: if esAdmin();
+    }
+
+    // ---- Datos de trabajo de cada docente ----
+    // usuarios/{uid}/datos/{clave}  (materias, actividades, cursos, etc.)
+    // Cada quien solo su propia data; un admin también puede leerla si hace falta.
+    match /usuarios/{uid}/datos/{clave} {
+      allow read: if request.auth != null && (request.auth.uid == uid || esAdmin());
+      // Escribir solo el dueño, y solo si está aprobado.
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && get(/databases/$(database)/documents/usuarios/$(uid)).data.aprobado == true;
+    }
+
+    // Todo lo demás queda denegado por defecto.
+  }
+}

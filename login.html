@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agenda Docente · Ingreso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:oklch(96% 0.012 75); --card:oklch(99% 0.005 75);
+    --line:oklch(88% 0.02 60); --ink:oklch(28% 0.03 50);
+    --muted:oklch(48% 0.02 55); --brand:oklch(40% 0.08 35);
+    --brand-ink:oklch(97% 0.01 70); --danger:oklch(50% 0.18 25);
+    --ok:oklch(45% 0.1 145);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Manrope',sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .card{background:var(--card);width:100%;max-width:400px;border:1px solid var(--line);
+    border-radius:18px;padding:30px 28px;box-shadow:0 8px 30px oklch(30% 0.03 50 / 0.08);}
+  .brand{display:flex;align-items:center;gap:11px;margin-bottom:22px;}
+  .brand img{width:40px;height:40px;border-radius:10px;object-fit:cover;}
+  .brand span{font-family:'Fraunces',serif;font-size:20px;font-weight:600;}
+  h1{font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin:0 0 4px;}
+  .sub{font-size:13.5px;color:var(--muted);margin:0 0 20px;line-height:1.5;}
+  label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:0.07em;color:var(--brand);margin:0 0 5px;}
+  .field{margin-bottom:14px;}
+  input{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;
+    font-size:14px;font-family:inherit;background:var(--card);color:var(--ink);}
+  input:focus{outline:none;border-color:var(--brand);}
+  button.primary{width:100%;padding:12px;border:none;border-radius:8px;background:var(--brand);
+    color:var(--brand-ink);font-size:15px;font-weight:700;font-family:'Fraunces',serif;
+    cursor:pointer;margin-top:4px;}
+  button.primary:disabled{opacity:.6;cursor:default;}
+  .switch{margin-top:16px;font-size:13.5px;color:var(--muted);text-align:center;}
+  .switch a{color:var(--brand);font-weight:700;cursor:pointer;text-decoration:none;}
+  .msg{font-size:13px;border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.45;display:none;}
+  .msg.err{display:block;background:oklch(94% 0.05 25);color:var(--danger);border:1px solid oklch(85% 0.08 25);}
+  .msg.info{display:block;background:oklch(93% 0.05 145);color:var(--ok);border:1px solid oklch(85% 0.07 145);}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <img src="assets/logo.png" alt="">
+      <span>Agenda Docente</span>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <!-- Vista: Iniciar sesión -->
+    <div id="viewLogin">
+      <h1>Iniciar sesión</h1>
+      <p class="sub">Ingresa con tu correo y contraseña de docente.</p>
+      <div class="field">
+        <label for="lEmail">Correo</label>
+        <input id="lEmail" type="email" autocomplete="email" placeholder="docente@colegio.edu">
+      </div>
+      <div class="field">
+        <label for="lPass">Contraseña</label>
+        <input id="lPass" type="password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button class="primary" id="btnLogin">Entrar</button>
+      <div class="switch">¿No tienes cuenta? <a id="toReg">Regístrate</a></div>
+    </div>
+
+    <!-- Vista: Registro -->
+    <div id="viewReg" style="display:none">
+      <h1>Crear cuenta</h1>
+      <p class="sub">Regístrate y un administrador aprobará tu acceso.</p>
+      <div class="field">
+        <label for="rNombre">Nombre</label>
+        <input id="rNombre" type="text" autocomplete="name" placeholder="Andrea Gómez">
+      </div>
+      <div class="field">
+        <label for="rEmail">Correo</label>
+        <input id="rEmail" type="email" autocomplete="email" placeholder="docente@colegio.edu">
+      </div>
+      <div class="field">
+        <label for="rPass">Contraseña <span style="font-weight:400;text-transform:none;color:var(--muted)">· mínimo 6 caracteres</span></label>
+        <input id="rPass" type="password" autocomplete="new-password" placeholder="••••••••">
+      </div>
+      <button class="primary" id="btnReg">Crear cuenta</button>
+      <div class="switch">¿Ya tienes cuenta? <a id="toLogin">Inicia sesión</a></div>
+    </div>
+  </div>
+
+<script type="module">
+  import { auth, db } from "./firebase-config.js";
+  import {
+    createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const $ = (id) => document.getElementById(id);
+  const msg = $("msg");
+  function showMsg(text, tipo){ msg.textContent = text; msg.className = "msg " + tipo; }
+  function clearMsg(){ msg.className = "msg"; msg.textContent = ""; }
+
+  // Cambiar entre vistas
+  $("toReg").onclick   = () => { clearMsg(); $("viewLogin").style.display="none"; $("viewReg").style.display="block"; };
+  $("toLogin").onclick = () => { clearMsg(); $("viewReg").style.display="none"; $("viewLogin").style.display="block"; };
+
+  // Mensaje según por qué nos redirigieron aquí
+  const motivo = new URLSearchParams(location.search).get("motivo");
+  if (motivo === "pendiente") showMsg("Tu cuenta aún no ha sido aprobada por un administrador.", "info");
+  if (motivo === "sin-perfil") showMsg("No encontramos tu perfil. Regístrate de nuevo o contacta al administrador.", "err");
+
+  function errorLegible(code){
+    const m = {
+      "auth/invalid-email":"El correo no es válido.",
+      "auth/missing-password":"Escribe tu contraseña.",
+      "auth/invalid-credential":"Correo o contraseña incorrectos.",
+      "auth/wrong-password":"Correo o contraseña incorrectos.",
+      "auth/user-not-found":"No existe una cuenta con ese correo.",
+      "auth/email-already-in-use":"Ese correo ya está registrado.",
+      "auth/weak-password":"La contraseña debe tener al menos 6 caracteres.",
+      "auth/too-many-requests":"Demasiados intentos. Espera un momento e intenta de nuevo."
+    };
+    return m[code] || "Ocurrió un error. Intenta de nuevo.";
+  }
+
+  // Tras un login válido, decide a dónde mandar al usuario.
+  async function rutearTrasLogin(user){
+    const snap = await getDoc(doc(db, "usuarios", user.uid));
+    const perfil = snap.exists() ? snap.data() : null;
+    if (!perfil){ await signOut(auth); showMsg("No encontramos tu perfil. Contacta al administrador.", "err"); return; }
+    if (!perfil.aprobado){ await signOut(auth); showMsg("Tu cuenta aún no ha sido aprobada por un administrador.", "info"); return; }
+    // Aprobado: al panel si es admin, si no al home de la app.
+    location.replace(perfil.rol === "admin" ? "admin.html" : "Agenda Docente.dc.html");
+  }
+
+  $("btnLogin").onclick = async () => {
+    clearMsg();
+    const email = $("lEmail").value.trim();
+    const pass = $("lPass").value;
+    if (!email || !pass){ showMsg("Completa correo y contraseña.", "err"); return; }
+    $("btnLogin").disabled = true;
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, pass);
+      await rutearTrasLogin(cred.user);
+    } catch (e) {
+      showMsg(errorLegible(e.code), "err");
+    } finally {
+      $("btnLogin").disabled = false;
+    }
+  };
+
+  $("btnReg").onclick = async () => {
+    clearMsg();
+    const nombre = $("rNombre").value.trim();
+    const email = $("rEmail").value.trim();
+    const pass = $("rPass").value;
+    if (!nombre || !email || !pass){ showMsg("Completa todos los campos.", "err"); return; }
+    $("btnReg").disabled = true;
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      // Perfil pendiente de aprobación. Las reglas obligan aprobado:false y rol:docente al crear.
+      await setDoc(doc(db, "usuarios", cred.user.uid), {
+        nombre, email, aprobado: false, rol: "docente", creado: Date.now()
+      });
+      await signOut(auth); // no lo dejamos entrar hasta que lo aprueben
+      $("viewReg").style.display="none"; $("viewLogin").style.display="block";
+      showMsg("¡Cuenta creada! Un administrador debe aprobarte antes de que puedas entrar.", "info");
+    } catch (e) {
+      showMsg(errorLegible(e.code), "err");
+    } finally {
+      $("btnReg").disabled = false;
+    }
+  };
+
+  // Si ya hay sesión activa al abrir login, rutéalo directamente.
+  onAuthStateChanged(auth, (user) => { if (user) rutearTrasLogin(user).catch(()=>{}); });
+</script>
+</body>
+</html>

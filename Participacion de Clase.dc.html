@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script type="module">
+  import { sessionReady, cerrarSesion } from './auth-guard.js';
+  window.__agendaSession = sessionReady;
+  window.__cerrarSesion = cerrarSesion;
+</script>
+<script type="module" src="./firebase-data.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;font-family:'Manrope',sans-serif;}
+  a{color:inherit;text-decoration:none;}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:oklch(96% 0.02 230);display:flex;flex-direction:column;">
+
+  <header style="background:oklch(28% 0.06 240);padding:14px clamp(16px,4vw,40px);">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <a href="Agenda Docente.dc.html" style="display:flex;align-items:center;gap:6px;color:oklch(85% 0.03 230);font-size:14px;font-weight:600;flex-shrink:0;" style-hover="color:oklch(96% 0.01 230);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Volver
+      </a>
+      <img src="assets/logo.png" alt="Agenda Docente" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0;"/>
+      <div style="flex:1;min-width:120px;">
+        <div style="font-family:'Fraunces',serif;font-size:clamp(18px,3vw,21px);font-weight:600;color:oklch(97% 0.01 230);line-height:1.2;">Participación de Clase</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:oklch(70% 0.02 230);margin-top:2px;">{{ fechaHoyTexto }}</div>
+      </div>
+      <button onclick="{{ openEstModal }}" style="padding:9px 16px;border-radius:8px;border:none;background:oklch(60% 0.16 235);color:oklch(15% 0.03 240);font-size:13.5px;font-weight:700;cursor:pointer;flex-shrink:0;" style-hover="background:oklch(68% 0.16 235);">+ Estudiante</button>
+    </div>
+  </header>
+
+  <nav style="background:oklch(28% 0.06 240);border-bottom:3px solid oklch(60% 0.16 235);display:flex;align-items:flex-end;gap:2px;padding:0 clamp(12px,4vw,36px);overflow-x:auto;">
+    <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="2">
+      <div onclick="{{ tab.onClick }}" style="padding:11px 16px;font-size:13.5px;font-weight:600;color:{{ tab.color }};background:{{ tab.bg }};border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;font-family:{{ tab.font }};">{{ tab.label }}</div>
+    </sc-for>
+    <div onclick="{{ openCursoModal }}" style="padding:11px 14px;font-size:13px;font-weight:600;color:oklch(70% 0.02 230);cursor:pointer;white-space:nowrap;">+ Curso</div>
+  </nav>
+
+  <main style="flex:1;padding:22px clamp(16px,4vw,40px) 60px;max-width:820px;width:100%;margin:0 auto;box-sizing:border-box;">
+
+    <sc-if value="{{ sinCursos }}" hint-placeholder-val="{{ false }}">
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="display:inline-block;font-family:'Fraunces',serif;font-style:italic;font-size:15px;color:oklch(50% 0.02 230);border:1.5px dashed oklch(85% 0.02 225);border-radius:10px;padding:18px 26px;">Crea tu primer curso o asignatura para comenzar a llevar el listado.</div>
+        <div style="margin-top:16px;">
+          <button onclick="{{ openCursoModal }}" style="padding:11px 22px;border-radius:8px;border:none;background:oklch(60% 0.16 235);color:oklch(15% 0.03 240);font-size:14px;font-weight:700;cursor:pointer;">+ Crear curso</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ hayCursos }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:22px;">
+      <div style="background:oklch(92% 0.02 225);border-radius:8px;padding:12px 14px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500;color:oklch(30% 0.05 235);line-height:1;">{{ statEstudiantes }}</div>
+        <div style="font-size:11px;color:oklch(45% 0.02 235);margin-top:5px;font-weight:600;">estudiantes</div>
+      </div>
+      <div style="background:oklch(92% 0.02 225);border-radius:8px;padding:12px 14px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500;color:oklch(30% 0.05 235);line-height:1;">{{ statPuntosHoy }}</div>
+        <div style="font-size:11px;color:oklch(45% 0.02 235);margin-top:5px;font-weight:600;">puntos otorgados hoy</div>
+      </div>
+    </div>
+
+    <sc-if value="{{ sinEstudiantes }}" hint-placeholder-val="{{ false }}">
+      <div style="text-align:center;padding:52px 20px;">
+        <span style="display:inline-block;font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:oklch(50% 0.02 230);border:1.5px dashed oklch(85% 0.02 225);border-radius:8px;padding:12px 22px;">Aún no hay estudiantes en este listado</span>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ hayEstudiantes }}" hint-placeholder-val="{{ false }}">
+      <input type="text" value="{{ search }}" oninput="{{ onSearch }}" placeholder="Buscar estudiante…" style="width:100%;padding:10px 14px;border:1.5px solid oklch(85% 0.02 225);border-radius:8px;font-size:14px;box-sizing:border-box;background:oklch(99% 0.005 230);color:oklch(26% 0.03 240);margin-bottom:14px;"/>
+    </sc-if>
+
+    <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+      <div style="text-align:center;padding:30px 20px;">
+        <span style="font-size:13.5px;color:oklch(50% 0.02 230);font-style:italic;font-family:'Fraunces',serif;">Sin resultados para "{{ search }}"</span>
+      </div>
+    </sc-if>
+
+    <sc-for list="{{ filas }}" as="row" hint-placeholder-count="3">
+      <div style="display:flex;align-items:center;gap:10px;background:oklch(99% 0.005 230);border:1px solid oklch(88% 0.02 225);border-left:5px solid {{ row.color }};border-radius:10px;padding:10px 14px;margin-bottom:8px;">
+        <button onclick="{{ row.onMinus }}" style="width:30px;height:30px;border-radius:50%;border:1.5px solid oklch(55% 0.18 25);background:transparent;color:oklch(45% 0.18 25);font-size:17px;font-weight:700;cursor:pointer;flex-shrink:0;" style-hover="background:oklch(93% 0.05 25);">−</button>
+        <div style="width:44px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:oklch(28% 0.03 240);flex-shrink:0;">{{ row.total }}</div>
+        <button onclick="{{ row.onPlus }}" style="width:30px;height:30px;border-radius:50%;border:1.5px solid oklch(48% 0.13 150);background:transparent;color:oklch(40% 0.13 150);font-size:17px;font-weight:700;cursor:pointer;flex-shrink:0;" style-hover="background:oklch(93% 0.05 150);">+</button>
+        <div onclick="{{ row.onOpen }}" style="flex:1;min-width:0;cursor:pointer;padding:2px 4px;">
+          <div style="font-size:14.5px;font-weight:700;color:oklch(26% 0.03 240);">{{ row.nombre }}</div>
+          <sc-if value="{{ row.showCurso }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:11.5px;color:oklch(50% 0.02 230);margin-top:1px;">{{ row.cursoLabel }}</div>
+          </sc-if>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" style="color:oklch(70% 0.02 225);flex-shrink:0;"><polyline points="7,4 13,10 7,16" stroke="currentColor" stroke-width="2"/></svg>
+      </div>
+    </sc-for>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ cursoModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onclick="{{ onCursoOverlayClick }}" style="position:fixed;inset:0;background:oklch(15% 0.02 240 / 0.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:18px;">
+      <div style="background:oklch(99% 0.005 230);width:100%;max-width:420px;border-radius:14px;padding:24px;box-sizing:border-box;border-top:4px solid oklch(60% 0.16 235);">
+        <div style="font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-bottom:16px;color:oklch(26% 0.03 240);">Nuevo curso / asignatura</div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:11px;font-weight:700;margin-bottom:5px;color:oklch(38% 0.14 235);text-transform:uppercase;letter-spacing:0.07em;">Nombre</label>
+          <input type="text" value="{{ cursoForm.nombre }}" onchange="{{ onCursoNombre }}" placeholder="Filosofía 11°" style="width:100%;padding:10px 12px;border:1.5px solid oklch(88% 0.02 225);border-radius:6px;font-size:14px;box-sizing:border-box;background:oklch(99% 0.005 230);color:oklch(26% 0.03 240);"/>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block;font-size:11px;font-weight:700;margin-bottom:5px;color:oklch(38% 0.14 235);text-transform:uppercase;letter-spacing:0.07em;">Descripción <span style="color:oklch(65% 0.02 225);font-weight:400;text-transform:none;">· opcional</span></label>
+          <input type="text" value="{{ cursoForm.descripcion }}" onchange="{{ onCursoDescripcion }}" placeholder="Ética y pensamiento crítico" style="width:100%;padding:10px 12px;border:1.5px solid oklch(88% 0.02 225);border-radius:6px;font-size:14px;box-sizing:border-box;background:oklch(99% 0.005 230);color:oklch(26% 0.03 240);"/>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="{{ closeCursoModal }}" style="padding:12px 18px;background:transparent;color:oklch(45% 0.02 235);border:1.5px solid oklch(88% 0.02 225);border-radius:6px;font-size:14px;cursor:pointer;">Cancelar</button>
+          <button onclick="{{ guardarCurso }}" style="flex:1;padding:12px;background:oklch(60% 0.16 235);color:oklch(15% 0.03 240);border:none;border-radius:6px;font-size:14.5px;font-weight:700;font-family:'Fraunces',serif;cursor:pointer;">Crear curso</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ estModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onclick="{{ onEstOverlayClick }}" style="position:fixed;inset:0;background:oklch(15% 0.02 240 / 0.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:18px;">
+      <div style="background:oklch(99% 0.005 230);width:100%;max-width:420px;border-radius:14px;padding:24px;box-sizing:border-box;border-top:4px solid oklch(60% 0.16 235);">
+        <div style="font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-bottom:16px;color:oklch(26% 0.03 240);">Nuevo estudiante</div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:11px;font-weight:700;margin-bottom:5px;color:oklch(38% 0.14 235);text-transform:uppercase;letter-spacing:0.07em;">Curso</label>
+          <select value="{{ estForm.cursoId }}" onchange="{{ onEstCurso }}" style="width:100%;padding:10px 12px;border:1.5px solid oklch(88% 0.02 225);border-radius:6px;font-size:14px;background:oklch(99% 0.005 230);color:oklch(26% 0.03 240);box-sizing:border-box;">
+            <sc-for list="{{ cursoOptions }}" as="c" hint-placeholder-count="1">
+              <option value="{{ c.id }}">{{ c.label }}</option>
+            </sc-for>
+          </select>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block;font-size:11px;font-weight:700;margin-bottom:5px;color:oklch(38% 0.14 235);text-transform:uppercase;letter-spacing:0.07em;">Listado <span style="color:oklch(65% 0.02 225);font-weight:400;text-transform:none;">· pega el listado, un estudiante por línea</span></label>
+          <textarea value="{{ estForm.listado }}" onchange="{{ onEstListado }}" placeholder="Ana García&#10;Carlos Martínez&#10;Laura Pérez" style="width:100%;min-height:140px;padding:10px 12px;border:1.5px solid oklch(88% 0.02 225);border-radius:6px;font-size:14px;box-sizing:border-box;resize:vertical;background:oklch(99% 0.005 230);color:oklch(26% 0.03 240);font-family:'IBM Plex Mono',monospace;"></textarea>
+          <div style="font-size:11.5px;color:oklch(60% 0.02 225);margin-top:5px;">{{ estConteoTexto }}</div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="{{ closeEstModal }}" style="padding:12px 18px;background:transparent;color:oklch(45% 0.02 235);border:1.5px solid oklch(88% 0.02 225);border-radius:6px;font-size:14px;cursor:pointer;">Cancelar</button>
+          <button onclick="{{ guardarEstudiante }}" style="flex:1;padding:12px;background:oklch(60% 0.16 235);color:oklch(15% 0.03 240);border:none;border-radius:6px;font-size:14.5px;font-weight:700;font-family:'Fraunces',serif;cursor:pointer;">{{ guardarEstBtnTexto }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ slideOpen }}" hint-placeholder-val="{{ false }}">
+    <div onclick="{{ onSlideOverlayClick }}" style="position:fixed;inset:0;background:oklch(15% 0.02 240 / 0.72);z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">
+      <div style="background:oklch(99% 0.005 230);width:100%;max-width:720px;max-height:90vh;overflow-y:auto;border-radius:16px;box-sizing:border-box;box-shadow:0 24px 70px oklch(15% 0.03 240 / 0.5);border-top:6px solid {{ slide.color }};position:relative;">
+        <button onclick="{{ closeSlide }}" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;border:1px solid oklch(88% 0.02 225);background:oklch(99% 0.005 230);color:oklch(45% 0.02 235);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+        <div style="padding:clamp(28px,5vw,44px);">
+          <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:5px 12px;border-radius:999px;background:{{ slide.color }};color:oklch(15% 0.03 240);">{{ slide.cursoLabel }}</span>
+          <h2 style="font-family:'Fraunces',serif;font-size:clamp(24px,4vw,30px);font-weight:600;color:oklch(24% 0.03 240);margin:14px 0 6px;line-height:1.2;">{{ slide.nombre }}</h2>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;flex-wrap:wrap;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;color:oklch(38% 0.14 235);">{{ slide.total }} pts</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="{{ slide.onReiniciar }}" style="padding:8px 14px;border-radius:6px;border:1px solid oklch(88% 0.02 225);background:transparent;color:oklch(45% 0.02 235);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="border-color:oklch(45% 0.1 70);color:oklch(45% 0.1 70);background:oklch(94% 0.04 70);">Reiniciar puntos</button>
+              <button onclick="{{ slide.onEliminar }}" style="padding:8px 14px;border-radius:6px;border:1px solid oklch(88% 0.02 225);background:transparent;color:oklch(45% 0.02 235);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="border-color:oklch(45% 0.18 25);color:oklch(45% 0.18 25);background:oklch(94% 0.03 25);">Eliminar estudiante</button>
+            </div>
+          </div>
+
+          <div style="background:oklch(94% 0.015 225);border-radius:10px;padding:16px 18px;margin-bottom:22px;">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:oklch(38% 0.14 235);margin-bottom:10px;">Agregar o quitar puntos</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input type="number" min="1" value="{{ slideForm.cantidad }}" onchange="{{ onSlideCantidad }}" style="width:70px;padding:9px 10px;border:1.5px solid oklch(85% 0.02 225);border-radius:6px;font-size:14px;font-family:'IBM Plex Mono',monospace;box-sizing:border-box;background:oklch(99% 0.005 230);color:oklch(26% 0.03 240);"/>
+              <input type="text" value="{{ slideForm.motivo }}" onchange="{{ onSlideMotivo }}" placeholder="Motivo (ej. participación en clase)" style="flex:1;min-width:160px;padding:9px 12px;border:1.5px solid oklch(85% 0.02 225);border-radius:6px;font-size:14px;box-sizing:border-box;background:oklch(99% 0.005 230);color:oklch(26% 0.03 240);"/>
+              <button onclick="{{ onSlideMinus }}" style="padding:9px 16px;border-radius:6px;border:1.5px solid oklch(55% 0.18 25);background:transparent;color:oklch(45% 0.18 25);font-size:14px;font-weight:700;cursor:pointer;">− Quitar</button>
+              <button onclick="{{ onSlidePlus }}" style="padding:9px 16px;border-radius:6px;border:none;background:oklch(48% 0.13 150);color:oklch(97% 0.02 150);font-size:14px;font-weight:700;cursor:pointer;">+ Agregar</button>
+            </div>
+          </div>
+
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:oklch(38% 0.14 235);margin-bottom:10px;">Evolución de puntos</div>
+          <sc-if value="{{ slide.chart.hasData }}" hint-placeholder-val="{{ false }}">
+            <div style="position:relative;margin-bottom:20px;">
+              <svg viewBox="0 0 280 100" style="width:100%;height:140px;display:block;" preserveAspectRatio="none">
+                <line x1="0" y1="{{ slide.chart.zeroY }}" x2="280" y2="{{ slide.chart.zeroY }}" stroke="oklch(85% 0.02 225)" stroke-width="1"/>
+                <polyline points="{{ slide.chart.points }}" fill="none" stroke="oklch(48% 0.16 235)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+                <sc-for list="{{ slide.chart.circles }}" as="pt" hint-placeholder-count="3">
+                  <circle cx="{{ pt.cx }}" cy="{{ pt.cy }}" r="3" fill="oklch(48% 0.16 235)"/>
+                </sc-for>
+              </svg>
+              <sc-for list="{{ slide.chart.circles }}" as="pt" hint-placeholder-count="3">
+                <span style="position:absolute;left:{{ pt.leftPct }}%;top:{{ pt.topPct }}%;transform:translate(-50%,0);font-size:9px;font-family:'IBM Plex Mono',monospace;color:oklch(50% 0.02 230);white-space:nowrap;">{{ pt.label }}</span>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ slide.chart.sinData }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;color:oklch(50% 0.02 230);font-style:italic;font-family:'Fraunces',serif;margin-bottom:20px;">Aún no hay suficientes registros para el gráfico.</div>
+          </sc-if>
+
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:oklch(38% 0.14 235);margin-bottom:10px;">Historial</div>
+          <sc-if value="{{ slide.sinHistorial }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;color:oklch(50% 0.02 230);font-style:italic;font-family:'Fraunces',serif;">Sin registros todavía</div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <sc-for list="{{ slide.historial }}" as="h" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:oklch(96% 0.012 225);border-radius:8px;">
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:{{ h.color }};width:38px;flex-shrink:0;">{{ h.puntosTexto }}</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13.5px;color:oklch(28% 0.03 240);">{{ h.motivo }}</div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:oklch(60% 0.02 225);margin-top:2px;">{{ h.fechaTexto }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const COLORS = ['oklch(60% 0.14 235)','oklch(55% 0.12 200)','oklch(58% 0.16 260)','oklch(62% 0.1 220)','oklch(52% 0.14 250)','oklch(65% 0.12 210)'];
+
+/* Capa de datos: ahora usa Firestore por usuario (window.AgendaData). */
+const dataLayer = {
+  async getCursos() { return window.AgendaData.getList('participacion_cursos'); },
+  async saveCursos(list) { return window.AgendaData.saveList('participacion_cursos', list); },
+  async getEstudiantes() { return window.AgendaData.getList('participacion_estudiantes'); },
+  async saveEstudiantes(list) { return window.AgendaData.saveList('participacion_estudiantes', list); },
+  async getRegistros() { return window.AgendaData.getList('participacion_registros'); },
+  async saveRegistros(list) { return window.AgendaData.saveList('participacion_registros', list); }
+};
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function localDateStr(ts) {
+  const d = new Date(ts);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function todayLocal() { return localDateStr(Date.now()); }
+
+class Component extends DCLogic {
+  state = {
+    loaded: false,
+    cursos: [], estudiantes: [], registros: [],
+    view: 'todos',
+    search: '',
+    cursoModalOpen: false, cursoForm: { nombre: '', descripcion: '' },
+    estModalOpen: false, estForm: { listado: '', cursoId: '' },
+    viewingId: null,
+    slideForm: { cantidad: 1, motivo: '' }
+  };
+
+  async componentDidMount() {
+    await (async () => { while (!window.AgendaData) { await new Promise(r => setTimeout(r, 20)); } return window.AgendaData.ready; })();  // espera capa Firebase + sesión
+    const cursos = await dataLayer.getCursos();
+    const estudiantes = await dataLayer.getEstudiantes();
+    const registros = await dataLayer.getRegistros();
+    this.setState({ loaded: true, cursos, estudiantes, registros });
+  }
+
+  async persistCursos(l) { await dataLayer.saveCursos(l); }
+  async persistEstudiantes(l) { await dataLayer.saveEstudiantes(l); }
+  async persistRegistros(l) { await dataLayer.saveRegistros(l); }
+
+  setView(id) { this.setState({ view: id }); }
+
+  openCursoModal() { this.setState({ cursoModalOpen: true, cursoForm: { nombre: '', descripcion: '' } }); }
+  closeCursoModal() { this.setState({ cursoModalOpen: false }); }
+  onCursoOverlayClick(e) { if (e.target === e.currentTarget) this.closeCursoModal(); }
+  async guardarCurso() {
+    const { nombre, descripcion } = this.state.cursoForm;
+    if (!nombre.trim()) return;
+    const cursos = this.state.cursos;
+    const nuevo = { id: uid(), nombre: nombre.trim(), descripcion: descripcion.trim(), color: COLORS[cursos.length % COLORS.length] };
+    const nuevos = [...cursos, nuevo];
+    this.setState({ cursos: nuevos, cursoModalOpen: false, view: nuevo.id });
+    await this.persistCursos(nuevos);
+  }
+
+  openEstModal() {
+    if (this.state.cursos.length === 0) { this.openCursoModal(); return; }
+    const defaultCurso = this.state.view !== 'todos' ? this.state.view : this.state.cursos[0].id;
+    this.setState({ estModalOpen: true, estForm: { listado: '', cursoId: defaultCurso } });
+  }
+  closeEstModal() { this.setState({ estModalOpen: false }); }
+  onEstOverlayClick(e) { if (e.target === e.currentTarget) this.closeEstModal(); }
+  async guardarEstudiante() {
+    const { listado, cursoId } = this.state.estForm;
+    if (!cursoId) return;
+    const nombres = (listado || '').split('\n').map(n => n.trim()).filter(Boolean);
+    if (nombres.length === 0) return;
+    const nuevos = [...this.state.estudiantes, ...nombres.map(nombre => ({ id: uid(), nombre, cursoId, puntosTotales: 0 }))];
+    this.setState({ estudiantes: nuevos, estModalOpen: false });
+    await this.persistEstudiantes(nuevos);
+  }
+
+  async registrarPuntos(estudianteId, delta, motivo) {
+    if (!delta) return;
+    const hoy = todayLocal();
+    const motivoLimpio = motivo && motivo.trim() ? motivo.trim() : 'Ajuste rápido';
+    const idx = this.state.registros.findIndex(r => r.estudianteId === estudianteId && localDateStr(r.fecha) === hoy);
+    let registros;
+    if (idx !== -1) {
+      const existente = this.state.registros[idx];
+      const motivoFinal = motivoLimpio === 'Ajuste rápido' ? existente.motivo : (existente.motivo && existente.motivo !== 'Ajuste rápido' ? existente.motivo + '; ' + motivoLimpio : motivoLimpio);
+      registros = this.state.registros.slice();
+      registros[idx] = { ...existente, puntos: existente.puntos + delta, motivo: motivoFinal, fecha: Date.now() };
+    } else {
+      registros = [...this.state.registros, { id: uid(), fecha: Date.now(), estudianteId, puntos: delta, motivo: motivoLimpio }];
+    }
+    const estudiantes = this.state.estudiantes.map(e => e.id === estudianteId ? { ...e, puntosTotales: (e.puntosTotales || 0) + delta } : e);
+    this.setState({ estudiantes, registros });
+    await this.persistEstudiantes(estudiantes);
+    await this.persistRegistros(registros);
+  }
+
+  async reiniciarPuntos(estudianteId) {
+    if (!confirm('¿Reiniciar los puntos de este estudiante a 0? Se borrará su historial y gráfico.')) return;
+    const estudiantes = this.state.estudiantes.map(e => e.id === estudianteId ? { ...e, puntosTotales: 0 } : e);
+    const registros = this.state.registros.filter(r => r.estudianteId !== estudianteId);
+    this.setState({ estudiantes, registros });
+    await this.persistEstudiantes(estudiantes);
+    await this.persistRegistros(registros);
+  }
+
+  openSlide(id) { this.setState({ viewingId: id, slideForm: { cantidad: 1, motivo: '' } }); }
+  closeSlide() { this.setState({ viewingId: null }); }
+  async eliminarEstudiante(id) {
+    if (!confirm('¿Eliminar este estudiante y su historial de puntos?')) return;
+    const estudiantes = this.state.estudiantes.filter(e => e.id !== id);
+    const registros = this.state.registros.filter(r => r.estudianteId !== id);
+    this.setState({ estudiantes, registros, viewingId: null });
+    await this.persistEstudiantes(estudiantes);
+    await this.persistRegistros(registros);
+  }
+  onSlideOverlayClick(e) { if (e.target === e.currentTarget) this.closeSlide(); }
+  setSlideField(field, value) { this.setState(s => ({ slideForm: { ...s.slideForm, [field]: value } })); }
+
+  renderVals() {
+    const s = this.state;
+    const hoy = todayLocal();
+    const fechaHoyTexto = new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    const tabs = [
+      { id: 'todos', label: 'Todos', onClick: () => this.setView('todos'),
+        color: s.view === 'todos' ? 'oklch(38% 0.14 235)' : 'oklch(70% 0.02 230)',
+        bg: s.view === 'todos' ? 'oklch(96% 0.02 230)' : 'transparent',
+        font: s.view === 'todos' ? "'Fraunces',serif" : "'Manrope',sans-serif" }
+    ].concat(s.cursos.map(c => ({
+      id: c.id, label: c.nombre, onClick: () => this.setView(c.id),
+      color: s.view === c.id ? 'oklch(38% 0.14 235)' : 'oklch(70% 0.02 230)',
+      bg: s.view === c.id ? 'oklch(96% 0.02 230)' : 'transparent',
+      font: s.view === c.id ? "'Fraunces',serif" : "'Manrope',sans-serif"
+    })));
+
+    const estudiantesVista = s.view === 'todos' ? s.estudiantes : s.estudiantes.filter(e => e.cursoId === s.view);
+    const puntosHoy = s.registros.filter(r => estudiantesVista.some(e => e.id === r.estudianteId) && new Date(r.fecha).getFullYear() + '-' + String(new Date(r.fecha).getMonth() + 1).padStart(2, '0') + '-' + String(new Date(r.fecha).getDate()).padStart(2, '0') === hoy)
+      .reduce((sum, r) => sum + r.puntos, 0);
+
+    const filtrados = s.search.trim() ? estudiantesVista.filter(e => e.nombre.toLowerCase().includes(s.search.trim().toLowerCase())) : estudiantesVista;
+
+    const filas = filtrados.map(e => {
+      const curso = s.cursos.find(c => c.id === e.cursoId);
+      return {
+        id: e.id, nombre: e.nombre, total: e.puntosTotales || 0,
+        color: curso ? curso.color : 'oklch(80% 0.02 225)',
+        showCurso: s.view === 'todos', cursoLabel: curso ? curso.nombre : '',
+        onMinus: () => this.registrarPuntos(e.id, -1),
+        onPlus: () => this.registrarPuntos(e.id, 1),
+        onOpen: () => this.openSlide(e.id)
+      };
+    });
+
+    const cursoOptions = s.cursos.map(c => ({ id: c.id, label: c.nombre }));
+
+    const viewingEst = s.viewingId ? s.estudiantes.find(e => e.id === s.viewingId) : null;
+    let slide = null;
+    if (viewingEst) {
+      const curso = s.cursos.find(c => c.id === viewingEst.cursoId);
+      const regs = s.registros.filter(r => r.estudianteId === viewingEst.id).slice().sort((a, b) => a.fecha - b.fecha);
+      let running = 0;
+      const cumulative = regs.map(r => { running += r.puntos; return running; });
+      let chart = { hasData: false, sinData: true, points: '', circles: [], zeroY: 50 };
+      if (cumulative.length >= 1) {
+        const min = Math.min(0, ...cumulative);
+        const max = Math.max(0, ...cumulative);
+        const range = (max - min) || 1;
+        const w = 280, h = 100, pad = 8;
+        const n = cumulative.length;
+        const chartH = h - 22;
+        const xFor = (i) => n === 1 ? w / 2 : pad + (i * (w - pad * 2) / (n - 1));
+        const yFor = (v) => chartH - pad - ((v - min) / range) * (chartH - pad * 2);
+        const circles = cumulative.map((v, i) => ({
+          cx: xFor(i), cy: yFor(v),
+          leftPct: (xFor(i) / w) * 100, topPct: ((chartH + 14) / h) * 100,
+          label: new Date(regs[i].fecha).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        }));
+        chart = {
+          hasData: true, sinData: false,
+          points: circles.map(c => c.cx + ',' + c.cy).join(' '),
+          circles, zeroY: yFor(0)
+        };
+      }
+      slide = {
+        color: curso ? curso.color : 'oklch(80% 0.02 225)',
+        cursoLabel: curso ? curso.nombre : '',
+        nombre: viewingEst.nombre,
+        total: viewingEst.puntosTotales || 0,
+        onEliminar: () => this.eliminarEstudiante(viewingEst.id),
+        onReiniciar: () => this.reiniciarPuntos(viewingEst.id),
+        chart,
+        sinHistorial: regs.length === 0,
+        historial: regs.slice().reverse().map(r => ({
+          puntosTexto: (r.puntos > 0 ? '+' : '') + r.puntos,
+          color: r.puntos >= 0 ? 'oklch(40% 0.13 150)' : 'oklch(45% 0.18 25)',
+          motivo: r.motivo,
+          fechaTexto: new Date(r.fecha).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        }))
+      };
+    }
+
+    return {
+      fechaHoyTexto, tabs,
+      openCursoModal: () => this.openCursoModal(),
+      openEstModal: () => this.openEstModal(),
+      sinCursos: s.cursos.length === 0, hayCursos: s.cursos.length > 0,
+      sinEstudiantes: estudiantesVista.length === 0,
+      hayEstudiantes: estudiantesVista.length > 0,
+      sinResultados: estudiantesVista.length > 0 && s.search.trim() !== '' && filtrados.length === 0,
+      search: s.search,
+      onSearch: (e) => this.setState({ search: e.target.value }),
+      statEstudiantes: estudiantesVista.length, statPuntosHoy: puntosHoy,
+      filas,
+
+      cursoModalOpen: s.cursoModalOpen, cursoForm: s.cursoForm,
+      onCursoNombre: (e) => this.setState(st => ({ cursoForm: { ...st.cursoForm, nombre: e.target.value } })),
+      onCursoDescripcion: (e) => this.setState(st => ({ cursoForm: { ...st.cursoForm, descripcion: e.target.value } })),
+      closeCursoModal: () => this.closeCursoModal(),
+      onCursoOverlayClick: (e) => this.onCursoOverlayClick(e),
+      guardarCurso: () => this.guardarCurso(),
+
+      estModalOpen: s.estModalOpen, estForm: s.estForm, cursoOptions,
+      estConteoTexto: (() => {
+        const n = (s.estForm.listado || '').split('\n').map(x => x.trim()).filter(Boolean).length;
+        return n === 0 ? 'Ningún nombre detectado aún' : n + ' estudiante' + (n !== 1 ? 's' : '') + ' detectado' + (n !== 1 ? 's' : '');
+      })(),
+      guardarEstBtnTexto: 'Añadir al listado',
+      onEstCurso: (e) => this.setState(st => ({ estForm: { ...st.estForm, cursoId: e.target.value } })),
+      onEstListado: (e) => this.setState(st => ({ estForm: { ...st.estForm, listado: e.target.value } })),
+      closeEstModal: () => this.closeEstModal(),
+      onEstOverlayClick: (e) => this.onEstOverlayClick(e),
+      guardarEstudiante: () => this.guardarEstudiante(),
+
+      slideOpen: !!slide, slide: slide || {},
+      closeSlide: () => this.closeSlide(),
+      onSlideOverlayClick: (e) => this.onSlideOverlayClick(e),
+      slideForm: s.slideForm,
+      onSlideCantidad: (e) => this.setSlideField('cantidad', parseInt(e.target.value, 10) || 1),
+      onSlideMotivo: (e) => this.setSlideField('motivo', e.target.value),
+      onSlideMinus: () => { if (viewingEst) this.registrarPuntos(viewingEst.id, -Math.abs(s.slideForm.cantidad || 1), s.slideForm.motivo); },
+      onSlidePlus: () => { if (viewingEst) this.registrarPuntos(viewingEst.id, Math.abs(s.slideForm.cantidad || 1), s.slideForm.motivo); }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

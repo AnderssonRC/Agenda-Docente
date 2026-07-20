@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agenda Docente · Administración</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:oklch(96% 0.012 75); --card:oklch(99% 0.005 75);
+    --line:oklch(88% 0.02 60); --ink:oklch(28% 0.03 50);
+    --muted:oklch(48% 0.02 55); --brand:oklch(40% 0.08 35);
+    --brand-ink:oklch(97% 0.01 70);
+    --ok:oklch(45% 0.1 145); --okbg:oklch(93% 0.05 145);
+    --warn:oklch(45% 0.12 70); --warnbg:oklch(94% 0.06 78);
+    --danger:oklch(50% 0.18 25);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Manrope',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;}
+  header{background:oklch(24% 0.025 50);padding:14px clamp(16px,4vw,40px);display:flex;
+    align-items:center;gap:14px;flex-wrap:wrap;}
+  header img{width:32px;height:32px;border-radius:8px;object-fit:cover;}
+  header .title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:oklch(97% 0.01 70);flex:1;}
+  header .who{font-size:12.5px;color:oklch(70% 0.02 60);}
+  header button{padding:8px 14px;border-radius:8px;border:1px solid oklch(45% 0.03 55);
+    background:transparent;color:oklch(85% 0.02 65);font-size:13px;font-weight:600;cursor:pointer;}
+  main{max-width:900px;margin:0 auto;padding:24px clamp(16px,4vw,40px) 60px;}
+  h2{font-family:'Fraunces',serif;font-size:18px;font-weight:600;margin:0 0 4px;}
+  .hint{font-size:13px;color:var(--muted);margin:0 0 18px;}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px;}
+  .stat{background:oklch(92% 0.014 65);border-radius:10px;padding:14px 16px;}
+  .stat .n{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;line-height:1;}
+  .stat .l{font-size:11.5px;color:var(--muted);margin-top:6px;font-weight:600;}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;}
+  th,td{text-align:left;padding:12px 14px;font-size:13.5px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);background:oklch(97% 0.008 70);}
+  tr:last-child td{border-bottom:none;}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .badge.ok{background:var(--okbg);color:var(--ok);}
+  .badge.pend{background:var(--warnbg);color:var(--warn);}
+  .badge.admin{background:oklch(92% 0.05 285);color:oklch(45% 0.15 285);}
+  .badge.doc{background:oklch(92% 0.014 65);color:var(--muted);}
+  .acts{display:flex;gap:6px;flex-wrap:wrap;}
+  .acts button{padding:6px 11px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink);}
+  .acts button.pos{border-color:var(--ok);color:var(--ok);}
+  .acts button.neg{border-color:var(--danger);color:var(--danger);}
+  .empty,.loading{text-align:center;color:var(--muted);font-family:'Fraunces',serif;font-style:italic;padding:40px 20px;}
+  .msg{font-size:13px;border-radius:8px;padding:10px 12px;margin-bottom:14px;display:none;}
+  .msg.err{display:block;background:oklch(94% 0.05 25);color:var(--danger);border:1px solid oklch(85% 0.08 25);}
+  .mono{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);}
+  @media(max-width:640px){ .hideSm{display:none} }
+</style>
+</head>
+<body>
+  <header>
+    <img src="assets/logo.png" alt="">
+    <div class="title">Administración de usuarios</div>
+    <div class="who" id="who"></div>
+    <button id="btnSalir">Cerrar sesión</button>
+  </header>
+  <main>
+    <h2>Docentes</h2>
+    <p class="hint">Aprueba o bloquea el acceso de cada docente. Solo los usuarios aprobados pueden entrar a la app.</p>
+
+    <div id="msg" class="msg"></div>
+
+    <div class="stats">
+      <div class="stat"><div class="n" id="nTotal">–</div><div class="l">registrados</div></div>
+      <div class="stat"><div class="n" id="nPend" style="color:var(--warn)">–</div><div class="l">pendientes</div></div>
+      <div class="stat"><div class="n" id="nAdmin" style="color:oklch(45% 0.15 285)">–</div><div class="l">administradores</div></div>
+    </div>
+
+    <div id="tablaWrap">
+      <div class="loading">Cargando usuarios…</div>
+    </div>
+  </main>
+
+<script type="module">
+  import { auth, db } from "./firebase-config.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    doc, getDoc, getDocs, collection, updateDoc, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const $ = (id) => document.getElementById(id);
+  const LOGIN = "login.html";
+  let miUid = null;
+
+  function showErr(t){ const m=$("msg"); m.textContent=t; m.className="msg err"; }
+
+  $("btnSalir").onclick = async () => { await signOut(auth).catch(()=>{}); location.replace(LOGIN); };
+
+  // Guardia: solo un admin aprobado puede ver esta página.
+  onAuthStateChanged(auth, async (user) => {
+    if (!user){ location.replace(LOGIN); return; }
+    miUid = user.uid;
+    let perfil = null;
+    try { const s = await getDoc(doc(db,"usuarios",user.uid)); perfil = s.exists()? s.data():null; }
+    catch(e){ perfil = null; }
+    if (!perfil || perfil.rol !== "admin" || !perfil.aprobado){
+      // No es admin: fuera del panel.
+      location.replace(perfil && perfil.aprobado ? "Agenda Docente.dc.html" : LOGIN);
+      return;
+    }
+    $("who").textContent = perfil.nombre ? (perfil.nombre + " · admin") : "admin";
+    document.body.style.visibility = "visible";
+    cargar();
+  });
+
+  async function cargar(){
+    let usuarios = [];
+    try {
+      const qs = await getDocs(collection(db, "usuarios"));
+      qs.forEach(d => usuarios.push({ uid: d.id, ...d.data() }));
+    } catch (e) {
+      showErr("No se pudieron cargar los usuarios. Revisa las reglas de Firestore.");
+      $("tablaWrap").innerHTML = "";
+      return;
+    }
+
+    usuarios.sort((a,b) => {
+      // Pendientes primero, luego por nombre.
+      if (!!a.aprobado !== !!b.aprobado) return a.aprobado ? 1 : -1;
+      return (a.nombre||a.email||"").localeCompare(b.nombre||b.email||"");
+    });
+
+    $("nTotal").textContent = usuarios.length;
+    $("nPend").textContent  = usuarios.filter(u => !u.aprobado).length;
+    $("nAdmin").textContent = usuarios.filter(u => u.rol === "admin").length;
+
+    if (!usuarios.length){ $("tablaWrap").innerHTML = '<div class="empty">Aún no hay usuarios registrados.</div>'; return; }
+
+    const filas = usuarios.map(u => {
+      const soyYo = u.uid === miUid;
+      const estado = u.aprobado
+        ? '<span class="badge ok">Aprobado</span>'
+        : '<span class="badge pend">Pendiente</span>';
+      const rol = u.rol === "admin"
+        ? '<span class="badge admin">Admin</span>'
+        : '<span class="badge doc">Docente</span>';
+
+      let acciones = "";
+      if (soyYo){
+        acciones = '<span class="mono">— tú —</span>';
+      } else {
+        acciones += u.aprobado
+          ? `<button class="neg" data-act="bloquear" data-uid="${u.uid}">Bloquear</button>`
+          : `<button class="pos" data-act="aprobar" data-uid="${u.uid}">Aprobar</button>`;
+        acciones += u.rol === "admin"
+          ? `<button data-act="quitarAdmin" data-uid="${u.uid}">Quitar admin</button>`
+          : `<button data-act="hacerAdmin" data-uid="${u.uid}">Hacer admin</button>`;
+        acciones += `<button class="neg" data-act="eliminar" data-uid="${u.uid}">Eliminar</button>`;
+      }
+
+      return `<tr>
+        <td>${escapeHtml(u.nombre||"(sin nombre)")}<div class="mono hideSm">${escapeHtml(u.email||"")}</div></td>
+        <td>${estado}</td>
+        <td>${rol}</td>
+        <td><div class="acts">${acciones}</div></td>
+      </tr>`;
+    }).join("");
+
+    $("tablaWrap").innerHTML = `<table>
+      <thead><tr><th>Docente</th><th>Estado</th><th>Rol</th><th>Acciones</th></tr></thead>
+      <tbody>${filas}</tbody></table>`;
+
+    $("tablaWrap").querySelectorAll("button[data-act]").forEach(btn => {
+      btn.onclick = () => ejecutar(btn.dataset.act, btn.dataset.uid);
+    });
+  }
+
+  async function ejecutar(act, uid){
+    try {
+      if (act === "aprobar")      await updateDoc(doc(db,"usuarios",uid), { aprobado: true });
+      if (act === "bloquear")     await updateDoc(doc(db,"usuarios",uid), { aprobado: false });
+      if (act === "hacerAdmin")   await updateDoc(doc(db,"usuarios",uid), { rol: "admin" });
+      if (act === "quitarAdmin")  await updateDoc(doc(db,"usuarios",uid), { rol: "docente" });
+      if (act === "eliminar"){
+        if (!confirm("¿Eliminar el perfil de este docente? Esto quita su acceso. (Su cuenta de inicio de sesión debe borrarse aparte desde la consola de Firebase.)")) return;
+        await deleteDoc(doc(db,"usuarios",uid));
+      }
+      await cargar();
+    } catch (e) {
+      showErr("No se pudo completar la acción. Revisa las reglas de Firestore.");
+    }
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  document.body.style.visibility = "hidden"; // se revela tras confirmar admin
+</script>
+</body>
+</html>
