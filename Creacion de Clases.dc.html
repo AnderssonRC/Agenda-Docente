@@ -540,7 +540,14 @@ class Component extends DCLogic {
       };
     });
 
-    const materiaOptions = s.materias.map(m => ({ id: m.id, label: m.curso ? m.nombre + ' · ' + m.curso : m.nombre }));
+    // Desplegable de materia: si estás dentro de un curso (y creando, no editando),
+    // muestra solo las asignaturas de ese curso. En "Hoy" o al editar, muestra todas.
+    let materiasParaSelect = s.materias;
+    if (s.view !== 'hoy' && !s.editingId) {
+      const soloDelCurso = s.materias.filter(m => cursoDe(m) === s.view);
+      if (soloDelCurso.length > 0) materiasParaSelect = soloDelCurso;
+    }
+    const materiaOptions = materiasParaSelect.map(m => ({ id: m.id, label: m.curso ? m.nombre + ' · ' + m.curso : m.nombre }));
 
     const viewingAct = s.viewingId ? s.actividades.find(a => a.id === s.viewingId) : null;
     let slide = null;
