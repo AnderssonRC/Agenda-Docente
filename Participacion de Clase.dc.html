@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script type="module">
   import { sessionReady, cerrarSesion } from './auth-guard.js';
   window.__agendaSession = sessionReady;
@@ -30,7 +34,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Volver
       </a>
-      <img src="logo-512.png" alt="Agenda Docente" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0;"/>
+      <img src="assets/logo.png" alt="Agenda Docente" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0;"/>
       <div style="flex:1;min-width:120px;">
         <div style="font-family:'Fraunces',serif;font-size:clamp(18px,3vw,21px);font-weight:600;color:oklch(97% 0.01 230);line-height:1.2;">Participación de Clase</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:oklch(70% 0.02 230);margin-top:2px;">{{ fechaHoyTexto }}</div>
@@ -174,7 +178,7 @@
 
           <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:oklch(38% 0.14 235);margin-bottom:10px;">Evolución de puntos</div>
           <sc-if value="{{ slide.chart.hasData }}" hint-placeholder-val="{{ false }}">
-            <div style="position:relative;margin-bottom:20px;">
+            <div style="position:relative;margin-bottom:38px;">
               <svg viewBox="0 0 280 100" style="width:100%;height:140px;display:block;" preserveAspectRatio="none">
                 <line x1="0" y1="{{ slide.chart.zeroY }}" x2="280" y2="{{ slide.chart.zeroY }}" stroke="oklch(85% 0.02 225)" stroke-width="1"/>
                 <polyline points="{{ slide.chart.points }}" fill="none" stroke="oklch(48% 0.16 235)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
@@ -183,7 +187,10 @@
                 </sc-for>
               </svg>
               <sc-for list="{{ slide.chart.circles }}" as="pt" hint-placeholder-count="3">
-                <span style="position:absolute;left:{{ pt.leftPct }}%;top:{{ pt.topPct }}%;transform:translate(-50%,0);font-size:9px;font-family:'IBM Plex Mono',monospace;color:oklch(50% 0.02 230);white-space:nowrap;">{{ pt.label }}</span>
+                <div style="position:absolute;left:{{ pt.leftPct }}%;top:100%;transform:translate(-50%,6px);text-align:center;font-family:'IBM Plex Mono',monospace;line-height:1.25;white-space:nowrap;display:{{ pt.labelVis }};">
+                  <div style="font-size:10.5px;font-weight:600;color:oklch(40% 0.05 235);">{{ pt.dia }}</div>
+                  <div style="font-size:10px;color:oklch(56% 0.03 235);">{{ pt.hora }}</div>
+                </div>
               </sc-for>
             </div>
           </sc-if>
@@ -388,11 +395,18 @@ class Component extends DCLogic {
         const chartH = h - 22;
         const xFor = (i) => n === 1 ? w / 2 : pad + (i * (w - pad * 2) / (n - 1));
         const yFor = (v) => chartH - pad - ((v - min) / range) * (chartH - pad * 2);
-        const circles = cumulative.map((v, i) => ({
-          cx: xFor(i), cy: yFor(v),
-          leftPct: (xFor(i) / w) * 100, topPct: ((chartH + 14) / h) * 100,
-          label: new Date(regs[i].fecha).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-        }));
+        const total = cumulative.length;
+        const circles = cumulative.map((v, i) => {
+          const d = new Date(regs[i].fecha);
+          const dia = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).replace('.', '');
+          const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+          const mostrar = total <= 5 ? true : (i % 2 === 0 || i === total - 1);
+          return {
+            cx: xFor(i), cy: yFor(v),
+            leftPct: (xFor(i) / w) * 100, topPct: ((chartH + 14) / h) * 100,
+            dia, hora, labelVis: mostrar ? 'block' : 'none'
+          };
+        });
         chart = {
           hasData: true, sinData: false,
           points: circles.map(c => c.cx + ',' + c.cy).join(' '),

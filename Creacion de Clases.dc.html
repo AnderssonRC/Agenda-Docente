@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script type="module">
   import { sessionReady, cerrarSesion } from './auth-guard.js';
   window.__agendaSession = sessionReady;
@@ -32,7 +36,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Volver
       </a>
-      <img src="logo-512.png" alt="Agenda Docente" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0;"/>
+      <img src="assets/logo.png" alt="Agenda Docente" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0;"/>
       <div style="flex:1;min-width:120px;">
         <div style="font-family:'Fraunces',serif;font-size:clamp(18px,3vw,21px);font-weight:600;color:oklch(97% 0.01 70);line-height:1.2;">Creación de Clases</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:oklch(65% 0.015 60);margin-top:2px;">{{ fechaHoyTexto }}</div>
