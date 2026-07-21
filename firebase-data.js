@@ -5,12 +5,15 @@
 // lista completa — así encaja con la forma en que los módulos ya leen/guardan
 // listas enteras, y no hay que reescribir su lógica interna.
 //
+// Con la caché local persistente activada en firebase-config.js, getDoc
+// devuelve primero la copia en disco (instantánea) y sincroniza con la nube
+// en segundo plano, por lo que las visitas repetidas cargan casi al momento.
+//
 // Expone en window.AgendaData:
 //   await AgendaData.ready            -> resuelve cuando hay sesión (uid listo)
 //   await AgendaData.getList(clave, seedSiVacio?)  -> Array
 //   await AgendaData.saveList(clave, lista)        -> void
-//
-// Los .dc.html esperan `window.__agendaSession` (lo pone auth-guard.js).
+// y window.__agendaDataReady -> promesa que resuelve con AgendaData listo.
 
 import { db } from "./firebase-config.js";
 import {
@@ -56,9 +59,8 @@ AgendaData.ready = (async () => {
 
 window.AgendaData = AgendaData;
 
-// Helper que los .dc.html pueden usar sin preocuparse por el orden de carga:
-// espera a que AgendaData exista (por si support.js montó primero) y a que
-// la sesión esté lista.
+// Promesa que los .dc.html esperan antes de leer datos. Resuelve cuando la
+// sesión (y por tanto el uid) está lista, sin importar el orden de carga.
 window.__agendaDataReady = AgendaData.ready.then(() => AgendaData);
 
 export default AgendaData;

@@ -5,85 +5,261 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agenda Docente · Ingreso</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:oklch(96% 0.012 75); --card:oklch(99% 0.005 75);
-    --line:oklch(88% 0.02 60); --ink:oklch(28% 0.03 50);
-    --muted:oklch(48% 0.02 55); --brand:oklch(40% 0.08 35);
-    --brand-ink:oklch(97% 0.01 70); --danger:oklch(50% 0.18 25);
-    --ok:oklch(45% 0.1 145);
+    /* Paleta café neón cálido */
+    --bg:oklch(18% 0.028 60);          /* café muy oscuro, casi negro achocolatado */
+    --panel:oklch(24% 0.03 58);        /* tarjeta del formulario */
+    --line:oklch(38% 0.04 55);         /* bordes tenues */
+    --ink:oklch(94% 0.02 70);          /* texto claro cálido */
+    --muted:oklch(72% 0.03 60);        /* texto secundario */
+    --neon:oklch(80% 0.15 75);         /* ámbar/dorado neón */
+    --neon-strong:oklch(85% 0.17 78);  /* ámbar más brillante */
+    --neon-ink:oklch(20% 0.04 60);     /* texto oscuro sobre el neón */
+    --danger:oklch(70% 0.16 25);
+    --danger-bg:oklch(30% 0.06 25);
+    --ok:oklch(80% 0.13 145);
+    --ok-bg:oklch(30% 0.05 145);
+    --glow:0 0 22px oklch(80% 0.15 75 / 0.28);
+    --glow-soft:0 0 14px oklch(80% 0.15 75 / 0.18);
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:'Manrope',sans-serif;background:var(--bg);color:var(--ink);
-    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
-  .card{background:var(--card);width:100%;max-width:400px;border:1px solid var(--line);
-    border-radius:18px;padding:30px 28px;box-shadow:0 8px 30px oklch(30% 0.03 50 / 0.08);}
-  .brand{display:flex;align-items:center;gap:11px;margin-bottom:22px;}
-  .brand img{width:40px;height:40px;border-radius:10px;object-fit:cover;}
-  .brand span{font-family:'Fraunces',serif;font-size:20px;font-weight:600;}
-  h1{font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin:0 0 4px;}
-  .sub{font-size:13.5px;color:var(--muted);margin:0 0 20px;line-height:1.5;}
-  label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
-    letter-spacing:0.07em;color:var(--brand);margin:0 0 5px;}
-  .field{margin-bottom:14px;}
-  input{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;
-    font-size:14px;font-family:inherit;background:var(--card);color:var(--ink);}
-  input:focus{outline:none;border-color:var(--brand);}
-  button.primary{width:100%;padding:12px;border:none;border-radius:8px;background:var(--brand);
-    color:var(--brand-ink);font-size:15px;font-weight:700;font-family:'Fraunces',serif;
-    cursor:pointer;margin-top:4px;}
-  button.primary:disabled{opacity:.6;cursor:default;}
-  .switch{margin-top:16px;font-size:13.5px;color:var(--muted);text-align:center;}
-  .switch a{color:var(--brand);font-weight:700;cursor:pointer;text-decoration:none;}
-  .msg{font-size:13px;border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.45;display:none;}
-  .msg.err{display:block;background:oklch(94% 0.05 25);color:var(--danger);border:1px solid oklch(85% 0.08 25);}
-  .msg.info{display:block;background:oklch(93% 0.05 145);color:var(--ok);border:1px solid oklch(85% 0.07 145);}
+  html,body{margin:0;min-height:100%;}
+  body{
+    font-family:'Manrope',sans-serif;color:var(--ink);
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 0%, oklch(30% 0.05 65 / 0.7), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 100% 100%, oklch(28% 0.05 50 / 0.6), transparent 55%),
+      var(--bg);
+    min-height:100vh;display:flex;align-items:stretch;
+  }
+  /* rejilla sutil de fondo, como la referencia */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;opacity:0.5;
+    background-image:
+      linear-gradient(oklch(60% 0.04 60 / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(60% 0.04 60 / 0.05) 1px, transparent 1px);
+    background-size:46px 46px;
+  }
+  .wrap{
+    position:relative;z-index:1;width:100%;max-width:1180px;margin:0 auto;
+    display:grid;grid-template-columns:1.05fr 0.95fr;gap:0;align-items:stretch;
+  }
+
+  /* ---------- Panel izquierdo (mensaje) ---------- */
+  .hero{
+    padding:clamp(28px,5vw,64px);display:flex;flex-direction:column;justify-content:center;gap:26px;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand .mark{
+    width:46px;height:46px;border-radius:12px;object-fit:cover;
+    box-shadow:var(--glow-soft);border:1px solid oklch(70% 0.1 75 / 0.4);
+  }
+  .brand .name{line-height:1.05;}
+  .brand .name b{
+    display:block;font-family:'Fraunces',serif;font-weight:700;font-size:19px;color:var(--ink);
+  }
+  .brand .name span{
+    display:block;font-size:12px;font-weight:700;letter-spacing:0.02em;
+    color:var(--neon);text-shadow:var(--glow-soft);
+  }
+  .eyebrow{
+    font-size:12.5px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--neon);text-shadow:var(--glow-soft);
+  }
+  .hero h1{
+    font-family:'Fraunces',serif;font-weight:600;
+    font-size:clamp(34px,5.2vw,60px);line-height:1.02;margin:0;color:var(--ink);
+    letter-spacing:-0.01em;
+  }
+  .hero h1 .hl{
+    color:var(--neon-strong);text-shadow:var(--glow);
+  }
+  .lead{
+    font-size:clamp(15px,1.6vw,17px);line-height:1.6;color:var(--muted);max-width:52ch;margin:0;
+  }
+  .lead b{color:var(--ink);font-weight:600;}
+  .features{
+    display:flex;flex-wrap:wrap;gap:18px 26px;margin-top:4px;
+  }
+  .feature{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--muted);}
+  .feature svg{width:17px;height:17px;color:var(--neon);filter:drop-shadow(var(--glow-soft));flex:none;}
+
+  /* ---------- Panel derecho (formulario) ---------- */
+  .formside{
+    display:flex;align-items:center;justify-content:center;padding:clamp(24px,4vw,56px);
+  }
+  .card{
+    width:100%;max-width:420px;background:var(--panel);
+    border:1px solid var(--line);border-radius:20px;
+    padding:clamp(26px,3.5vw,36px);
+    box-shadow:0 24px 60px oklch(10% 0.02 60 / 0.55), inset 0 1px 0 oklch(90% 0.05 75 / 0.06);
+  }
+  .kicker{
+    font-size:11.5px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--neon);margin-bottom:6px;text-shadow:var(--glow-soft);
+  }
+  h2{font-family:'Fraunces',serif;font-size:27px;font-weight:600;margin:0 0 6px;color:var(--ink);}
+  .sub{font-size:13.5px;color:var(--muted);margin:0 0 22px;line-height:1.5;}
+  label{
+    display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:0.08em;color:var(--neon);margin:0 0 6px;opacity:0.9;
+  }
+  .field{margin-bottom:15px;}
+  input{
+    width:100%;padding:13px 15px;border:1.5px solid var(--line);border-radius:11px;
+    font-size:14.5px;font-family:inherit;background:oklch(20% 0.028 58);color:var(--ink);
+    transition:border-color .15s, box-shadow .15s;
+  }
+  input::placeholder{color:oklch(58% 0.03 60);}
+  input:focus{outline:none;border-color:var(--neon);box-shadow:var(--glow-soft);}
+  button.primary{
+    width:100%;padding:14px;border:none;border-radius:11px;
+    background:linear-gradient(180deg, var(--neon-strong), var(--neon));
+    color:var(--neon-ink);font-size:15.5px;font-weight:700;font-family:'Fraunces',serif;
+    cursor:pointer;margin-top:6px;box-shadow:var(--glow);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .12s, box-shadow .15s, filter .15s;
+  }
+  button.primary:hover{filter:brightness(1.05);box-shadow:0 0 30px oklch(80% 0.15 75 / 0.4);}
+  button.primary:active{transform:translateY(1px);}
+  button.primary:disabled{opacity:.6;cursor:default;filter:none;box-shadow:none;}
+  button.primary svg{width:17px;height:17px;}
+  .switch{margin-top:18px;font-size:13.5px;color:var(--muted);text-align:center;}
+  .switch a{color:var(--neon);font-weight:700;cursor:pointer;text-decoration:none;text-shadow:var(--glow-soft);}
+  .switch a:hover{text-decoration:underline;}
+  .msg{font-size:13px;border-radius:11px;padding:11px 13px;margin-bottom:16px;line-height:1.45;display:none;}
+  .msg.err{display:block;background:var(--danger-bg);color:var(--danger);border:1px solid oklch(50% 0.1 25 / 0.5);}
+  .msg.info{display:block;background:var(--ok-bg);color:var(--ok);border:1px solid oklch(50% 0.08 145 / 0.5);}
+  .hint{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);}
+
+  .credit{
+    position:relative;z-index:1;grid-column:1 / -1;text-align:center;
+    padding:16px;font-size:12.5px;color:var(--muted);border-top:1px solid oklch(40% 0.03 55 / 0.4);
+  }
+  .credit b{color:var(--ink);}
+
+  /* ---------- Responsive: apilar en celular ---------- */
+  @media (max-width:860px){
+    .wrap{grid-template-columns:1fr;max-width:520px;}
+    .hero{padding:34px 26px 8px;gap:20px;text-align:left;}
+    .features{display:none;}          /* se ocultan para no saturar en móvil */
+    .formside{padding:20px 22px 34px;}
+    .hero h1{font-size:clamp(30px,9vw,44px);}
+    .lead{font-size:15px;}
+  }
+  @media (max-width:400px){
+    .card{padding:22px 18px;border-radius:16px;}
+    h2{font-size:23px;}
+  }
 </style>
 </head>
 <body>
-  <div class="card">
-    <div class="brand">
-      <img src="logo-192.png" alt="">
-      <span>Agenda Docente</span>
-    </div>
+  <div class="wrap">
 
-    <div id="msg" class="msg"></div>
+    <!-- IZQUIERDA: mensaje -->
+    <section class="hero">
+      <div class="brand">
+        <img class="mark" src="assets/logo.png" alt="">
+        <div class="name">
+          <b>Agenda Docente</b>
+          <span>RES COGITANS</span>
+        </div>
+      </div>
 
-    <!-- Vista: Iniciar sesión -->
-    <div id="viewLogin">
-      <h1>Iniciar sesión</h1>
-      <p class="sub">Ingresa con tu correo y contraseña de docente.</p>
-      <div class="field">
-        <label for="lEmail">Correo</label>
-        <input id="lEmail" type="email" autocomplete="email" placeholder="docente@colegio.edu">
-      </div>
-      <div class="field">
-        <label for="lPass">Contraseña</label>
-        <input id="lPass" type="password" autocomplete="current-password" placeholder="••••••••">
-      </div>
-      <button class="primary" id="btnLogin">Entrar</button>
-      <div class="switch">¿No tienes cuenta? <a id="toReg">Regístrate</a></div>
-    </div>
+      <div class="eyebrow">Todo en un solo lugar</div>
+      <h1>Planeación, participación y <span class="hl">seguimiento</span>, sin complicarte.</h1>
 
-    <!-- Vista: Registro -->
-    <div id="viewReg" style="display:none">
-      <h1>Crear cuenta</h1>
-      <p class="sub">Regístrate y un administrador aprobará tu acceso.</p>
-      <div class="field">
-        <label for="rNombre">Nombre</label>
-        <input id="rNombre" type="text" autocomplete="name" placeholder="Andrea Gómez">
+      <p class="lead">
+        <b>Agenda Docente. Todo en un solo lugar.</b> Planeación, Registro de Participación
+        y Seguimiento de Estudiantes. Cada módulo con sus propias reglas.
+      </p>
+
+      <div class="features">
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Planeación de clases
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Registro de participación
+        </div>
+        <div class="feature">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Seguimiento de estudiantes
+        </div>
       </div>
-      <div class="field">
-        <label for="rEmail">Correo</label>
-        <input id="rEmail" type="email" autocomplete="email" placeholder="docente@colegio.edu">
+    </section>
+
+    <!-- DERECHA: formulario -->
+    <section class="formside">
+      <div class="card">
+        <div id="msg" class="msg"></div>
+
+        <!-- Vista: Iniciar sesión -->
+        <div id="viewLogin">
+          <div class="kicker">Tu cuenta de docente</div>
+          <h2>Inicia sesión</h2>
+          <p class="sub">Entra para planear, registrar y hacer seguimiento de tus clases.</p>
+          <div class="field">
+            <label for="lEmail">Correo electrónico</label>
+            <input id="lEmail" type="email" autocomplete="email" placeholder="docente@colegio.edu">
+          </div>
+          <div class="field">
+            <label for="lPass">Contraseña</label>
+            <input id="lPass" type="password" autocomplete="current-password" placeholder="••••••••">
+          </div>
+          <button class="primary" id="btnLogin">
+            Entrar
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="switch">¿Primera vez? <a id="toReg">Crea una cuenta nueva</a></div>
+        </div>
+
+        <!-- Vista: Registro -->
+        <div id="viewReg" style="display:none">
+          <div class="kicker">Nueva cuenta</div>
+          <h2>Crear cuenta</h2>
+          <p class="sub">Regístrate y un administrador aprobará tu acceso.</p>
+          <div class="field">
+            <label for="rNombre">Nombre</label>
+            <input id="rNombre" type="text" autocomplete="name" placeholder="Andrea Gómez">
+          </div>
+          <div class="field">
+            <label for="rEmail">Correo electrónico</label>
+            <input id="rEmail" type="email" autocomplete="email" placeholder="docente@colegio.edu">
+          </div>
+          <div class="field">
+            <label for="rPass">Contraseña <span class="hint">· mínimo 6 caracteres</span></label>
+            <input id="rPass" type="password" autocomplete="new-password" placeholder="••••••••">
+          </div>
+          <button class="primary" id="btnReg">
+            Crear cuenta
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="switch">¿Ya tienes cuenta? <a id="toLogin">Inicia sesión</a></div>
+        </div>
       </div>
-      <div class="field">
-        <label for="rPass">Contraseña <span style="font-weight:400;text-transform:none;color:var(--muted)">· mínimo 6 caracteres</span></label>
-        <input id="rPass" type="password" autocomplete="new-password" placeholder="••••••••">
+    </section>
+
+    <div class="credit">Creado por <b>Andersson Cortes</b> y <a id="aboutLink" style="color:var(--neon);font-weight:700;cursor:pointer;text-shadow:var(--glow-soft);">Res Cogitans</a></div>
+  </div>
+
+  <!-- Modal: Acerca de Res Cogitans -->
+  <div id="aboutOverlay" style="position:fixed;inset:0;background:oklch(12% 0.02 55 / 0.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:200;">
+    <div style="background:var(--panel);border:1px solid var(--line);max-width:560px;width:100%;max-height:86vh;overflow-y:auto;border-radius:20px;padding:clamp(26px,4vw,38px);box-shadow:0 24px 60px oklch(6% 0.02 55 / 0.6);">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+        <img src="assets/logo.png" alt="" style="width:44px;height:44px;border-radius:11px;object-fit:cover;box-shadow:var(--glow-soft);"/>
+        <div style="line-height:1.1;">
+          <div style="font-family:'Fraunces',serif;font-size:21px;font-weight:700;color:var(--ink);">Res Cogitans</div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;color:var(--neon);text-shadow:var(--glow-soft);">EL ARTE DE EDUCAR</div>
+        </div>
+        <div style="flex:1;"></div>
+        <div id="aboutClose" style="cursor:pointer;font-size:24px;line-height:1;color:var(--muted);width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:oklch(20% 0.028 58);">&times;</div>
       </div>
-      <button class="primary" id="btnReg">Crear cuenta</button>
-      <div class="switch">¿Ya tienes cuenta? <a id="toLogin">Inicia sesión</a></div>
+      <p style="font-size:15px;line-height:1.72;color:var(--ink);margin:0 0 16px;font-family:'Fraunces',serif;">Res Cogitans es un proyecto que busca reivindicar el arte creador de los docentes, pues son Artesanos en su enseñar. Por esa razón, y sin descanso, se busca crear herramientas digitales, físicas y epistémicas que permitan al docente reivindicarse en su hacer social y político, mostrándose como un sabedor que une intelecto y materialidad (producción real), además de estar autorizado a ejercer bajo su razón intelectual y sus años de experiencia, cualquier tipo de transformación y decisión. Esto reivindica al docente como experto de la enseñanza, pues nadie más que él sabe el complejo Arte de Educar.</p>
+      <div style="border-top:1px solid var(--line);padding-top:14px;font-size:13.5px;color:var(--muted);font-style:italic;">Att: Andersson Cortes y Res Cogitans</div>
     </div>
   </div>
 
@@ -174,6 +350,12 @@
 
   // Si ya hay sesión activa al abrir login, rutéalo directamente.
   onAuthStateChanged(auth, (user) => { if (user) rutearTrasLogin(user).catch(()=>{}); });
+
+  // Modal "Acerca de Res Cogitans"
+  const aboutOverlay = $("aboutOverlay");
+  $("aboutLink").onclick = () => { aboutOverlay.style.display = "flex"; };
+  $("aboutClose").onclick = () => { aboutOverlay.style.display = "none"; };
+  aboutOverlay.onclick = (e) => { if (e.target === aboutOverlay) aboutOverlay.style.display = "none"; };
 </script>
 </body>
 </html>

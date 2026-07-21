@@ -1,23 +1,43 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<link rel="icon" href="favicon.ico" sizes="any" />
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-<link rel="apple-touch-icon" href="apple-touch-icon.png" />
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agenda Docente</title>
-<meta http-equiv="refresh" content="0; url=login.html">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500&display=swap" rel="stylesheet">
-<style>
-  body{margin:0;font-family:'Manrope',sans-serif;background:oklch(96% 0.012 75);
-    color:oklch(45% 0.02 55);min-height:100vh;display:flex;align-items:center;justify-content:center;}
-</style>
-</head>
-<body>
-  <p>Redirigiendo al inicio de sesión… <a href="login.html">Entrar</a></p>
-  <script>location.replace("login.html");</script>
-</body>
-</html>
+// firebase-config.js
+// Configuración pública de Firebase. En apps web esto es público por diseño:
+// lo que protege la base de datos son las Reglas de Firestore, no estas claves.
+//
+// Este archivo exporta `app`, `auth` y `db` ya inicializados usando el SDK
+// modular de Firebase cargado por CDN (ver los <script type="module"> de cada página).
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCGwWeZOgqgwQlQw57YuM1u778v9--ct4M",
+  authDomain: "agenda-docente-dcfc9.firebaseapp.com",
+  projectId: "agenda-docente-dcfc9",
+  storageBucket: "agenda-docente-dcfc9.firebasestorage.app",
+  messagingSenderId: "622939152881",
+  appId: "1:622939152881:web:7af88915da0b7ab8322450"
+};
+
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+
+// Firestore con caché local persistente: guarda una copia de los datos en el
+// navegador. Así, en visitas siguientes los datos aparecen al instante desde
+// el disco mientras se sincroniza con la nube en segundo plano.
+// persistentMultipleTabManager permite tener varias pestañas abiertas sin error.
+let dbInstance;
+try {
+  dbInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+} catch (e) {
+  // Si el navegador no soporta persistencia (modo privado antiguo, etc.),
+  // cae a Firestore normal sin caché para no romper la app.
+  const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  dbInstance = getFirestore(app);
+}
+export const db = dbInstance;

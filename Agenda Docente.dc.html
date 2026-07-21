@@ -5,119 +5,265 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script type="module">
   import { sessionReady, cerrarSesion } from './auth-guard.js';
-  window.__agendaSession = sessionReady;   // protege esta página y expone la sesión
+  window.__agendaSession = sessionReady;
   window.__cerrarSesion = cerrarSesion;
 </script>
+<script type="module" src="./firebase-data.js"></script>
 <script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet data-dc-atomics>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   body{margin:0;font-family:'Manrope',sans-serif;}
   a{color:inherit;text-decoration:none;}
   ::selection{background:oklch(70% 0.08 55 / 0.35);}
+  .statcard{transition:transform .16s, box-shadow .16s;}
+  .statcard:hover{transform:translateY(-2px);box-shadow:0 8px 22px oklch(30% 0.05 50 / 0.12);}
+  .modcard{transition:transform .18s, box-shadow .18s;}
+  .modcard:hover{transform:translateY(-3px);box-shadow:0 12px 30px oklch(30% 0.06 45 / 0.18);}
+  .modcard:hover .go{gap:11px;}
+  .avatarwrap{position:relative;}
+  .avatarmenu{position:absolute;right:0;top:52px;min-width:212px;background:oklch(99% 0.005 75);
+    border:1px solid oklch(86% 0.02 60);border-radius:14px;padding:7px;
+    box-shadow:0 16px 40px oklch(30% 0.04 50 / 0.22);z-index:60;transition:opacity .15s, transform .15s, visibility .15s;}
+  .avatarmenu a, .avatarmenu button{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+    font-size:14px;font-weight:600;color:oklch(35% 0.03 50);background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left;box-sizing:border-box;}
+  .avatarmenu a:hover, .avatarmenu button:hover{background:oklch(94% 0.02 65);}
+  .avatarmenu .sep{height:1px;background:oklch(90% 0.015 60);margin:5px 4px;}
+  .avatarbtn{cursor:pointer;user-select:none;}
+  .qbtn{transition:transform .14s, box-shadow .14s;}
+  .qbtn:hover{transform:translateY(-1px);}
 </style>
 </helmet>
 
 <div style="min-height:100vh;background:oklch(96% 0.012 75);display:flex;flex-direction:column;">
 
-  <header style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px clamp(16px,4vw,40px);background:oklch(99% 0.005 75);border-bottom:1px solid oklch(88% 0.02 60);">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <img src="logo-512.png" alt="Agenda Docente" style="width:38px;height:38px;border-radius:10px;object-fit:cover;"/>
-      <span style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:oklch(30% 0.03 50);">Agenda Docente</span>
+  <!-- ===== Barra superior ===== -->
+  <header style="display:flex;align-items:center;gap:16px;padding:12px clamp(16px,4vw,40px);background:oklch(24% 0.03 45);position:sticky;top:0;z-index:40;">
+    <div style="display:flex;align-items:center;gap:11px;min-width:0;">
+      <img src="logo-512.png" alt="" style="width:38px;height:38px;border-radius:10px;object-fit:cover;flex:none;"/>
+      <div style="line-height:1.05;min-width:0;">
+        <div style="font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:oklch(97% 0.01 70);white-space:nowrap;">Agenda Docente</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.04em;color:oklch(78% 0.1 70);">RES COGITANS</div>
+      </div>
     </div>
 
-    <div style="display:flex;align-items:center;gap:14px;">
-      <span style="font-size:14px;color:oklch(45% 0.02 60);">{{ greeting }}</span>
-      <sc-if value="{{ isAdmin }}">
-        <a href="admin.html" style="padding:8px 13px;border-radius:8px;border:1px solid oklch(60% 0.1 285);background:oklch(96% 0.03 285);color:oklch(45% 0.15 285);font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l7 4v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-          Administrar usuarios
-        </a>
-      </sc-if>
-      <div style="width:38px;height:38px;border-radius:50%;background:oklch(55% 0.09 45);display:flex;align-items:center;justify-content:center;color:oklch(98% 0.01 70);font-weight:700;font-size:15px;">{{ userInitial }}</div>
-      <button onclick="{{ cerrarSesion }}" style="padding:8px 13px;border-radius:8px;border:1px solid oklch(88% 0.02 60);background:transparent;color:oklch(45% 0.02 60);font-size:13px;font-weight:600;cursor:pointer;">Salir</button>
+    <div style="flex:1;"></div>
+
+    <!-- Avatar con menú -->
+    <div class="avatarwrap" id="avatarwrap">
+      <div class="avatarbtn" onclick="{{ toggleMenu }}" style="display:flex;align-items:center;gap:8px;">
+        <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(145deg, oklch(70% 0.12 72), oklch(58% 0.11 55));display:flex;align-items:center;justify-content:center;color:oklch(22% 0.04 50);font-weight:800;font-size:16px;">{{ userInitial }}</div>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="color:oklch(80% 0.03 65);flex:none;transform:{{ chevronRot }};transition:transform .15s;"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="avatarmenu" style="opacity:{{ menuOpacity }};visibility:{{ menuVis }};transform:{{ menuTransform }};">
+        <div style="padding:9px 12px 6px;">
+          <div style="font-size:14px;font-weight:700;color:oklch(28% 0.03 50);">{{ userName }}</div>
+          <div style="font-size:12px;color:oklch(55% 0.02 55);margin-top:2px;">{{ roleLabel }}</div>
+        </div>
+        <div class="sep"></div>
+        <sc-if value="{{ isAdmin }}">
+          <a href="admin.html">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="color:oklch(45% 0.15 285);flex:none;"><path d="M12 2l7 4v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            Administrar usuarios
+          </a>
+          <div class="sep"></div>
+        </sc-if>
+        <button onclick="{{ cerrarSesion }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="color:oklch(50% 0.12 25);flex:none;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Cerrar sesión
+        </button>
+      </div>
     </div>
   </header>
 
-  <main style="flex:1;padding:clamp(20px,4vw,36px) clamp(16px,4vw,40px) 56px;max-width:1180px;width:100%;margin:0 auto;box-sizing:border-box;">
+  <main style="flex:1;padding:clamp(20px,4vw,34px) clamp(16px,4vw,40px) 56px;max-width:1200px;width:100%;margin:0 auto;box-sizing:border-box;">
 
-    <section style="border-radius:20px;background:linear-gradient(120deg, oklch(38% 0.06 45), oklch(52% 0.09 48));padding:clamp(26px,5vw,40px) clamp(22px,5vw,44px);position:relative;overflow:hidden;margin-bottom:32px;">
-      <div style="position:absolute;right:-40px;top:-40px;width:220px;height:220px;border-radius:50%;background:oklch(60% 0.08 50 / 0.25);"></div>
-      <div style="position:absolute;right:60px;bottom:-60px;width:140px;height:140px;border-radius:50%;background:oklch(70% 0.07 55 / 0.18);"></div>
-      <div style="position:relative;">
-        <span style="display:inline-block;background:oklch(98% 0.01 70 / 0.15);color:oklch(96% 0.01 70);font-size:13px;font-weight:600;padding:6px 14px;border-radius:999px;margin-bottom:16px;">Panel del docente</span>
-        <h1 style="font-family:'Fraunces',serif;font-size:clamp(24px,4.5vw,34px);font-weight:600;color:oklch(98% 0.01 70);margin:0 0 10px;">¡Hola, {{ userName }}!</h1>
-        <p style="font-size:clamp(14px,2.2vw,16px);color:oklch(92% 0.02 65);margin:0;max-width:520px;line-height:1.5;">Organiza tus clases, revisa la participación y da seguimiento a tus estudiantes desde un solo lugar.</p>
+    <!-- ===== Bienvenida ===== -->
+    <section style="border-radius:22px;background:linear-gradient(125deg, oklch(34% 0.06 42), oklch(48% 0.09 50));padding:clamp(24px,5vw,38px) clamp(22px,5vw,42px);position:relative;overflow:hidden;margin-bottom:26px;">
+      <div style="position:absolute;right:-50px;top:-50px;width:230px;height:230px;border-radius:50%;background:oklch(64% 0.1 60 / 0.28);"></div>
+      <div style="position:absolute;right:90px;bottom:-70px;width:150px;height:150px;border-radius:50%;background:oklch(74% 0.09 65 / 0.2);"></div>
+
+      <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+        <div style="min-width:240px;">
+          <span style="display:inline-block;background:oklch(98% 0.01 70 / 0.16);color:oklch(97% 0.01 70);font-size:13px;font-weight:600;padding:6px 14px;border-radius:999px;margin-bottom:14px;">Panel del docente</span>
+          <h1 style="font-family:'Fraunces',serif;font-size:clamp(26px,4.5vw,36px);font-weight:600;color:oklch(98% 0.01 70);margin:0 0 10px;line-height:1.05;">¡Hola, {{ userName }}!</h1>
+          <p style="font-size:clamp(14px,2.2vw,16px);color:oklch(93% 0.02 65);margin:0;max-width:520px;line-height:1.5;">Planeación, participación y seguimiento de tus estudiantes, todo en un solo lugar.</p>
+        </div>
+        <div style="text-align:right;flex:none;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:clamp(28px,6vw,42px);font-weight:600;color:oklch(98% 0.012 72);line-height:1;text-shadow:0 2px 14px oklch(30% 0.05 45 / 0.4);">{{ reloj }}</div>
+          <div style="font-size:13px;font-weight:600;color:oklch(90% 0.03 68);margin-top:9px;text-transform:capitalize;">{{ fecha }}</div>
+        </div>
       </div>
     </section>
 
-    <h2 style="font-size:18px;font-weight:700;color:oklch(32% 0.03 50);margin:0 0 18px;">Módulos</h2>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:22px;">
-      <sc-for list="{{ modules }}" as="mod" hint-placeholder-count="3">
-        <a href="{{ mod.href }}" style="display:flex;flex-direction:column;gap:16px;background:oklch(99% 0.005 75);border:1px solid oklch(89% 0.015 60);border-radius:16px;padding:26px;box-shadow:0 1px 2px oklch(20% 0.02 50 / 0.04);transition:box-shadow .15s, transform .15s;" style-hover="box-shadow:0 8px 20px oklch(30% 0.03 50 / 0.10);transform:translateY(-2px);">
-          <div style="width:52px;height:52px;border-radius:14px;background:{{ mod.tint }};display:flex;align-items:center;justify-content:center;font-size:24px;">{{ mod.emoji }}</div>
-          <div>
-            <h3 style="font-size:18px;font-weight:700;color:oklch(30% 0.03 50);margin:0 0 6px;">{{ mod.title }}</h3>
-            <p style="font-size:14px;color:oklch(48% 0.02 55);margin:0;line-height:1.5;">{{ mod.description }}</p>
+    <!-- ===== Tarjetas de estadísticas ===== -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 210px), 1fr));gap:16px;margin-bottom:34px;">
+      <sc-for list="{{ stats }}" as="st" hint-placeholder-count="3">
+        <div class="statcard" style="background:oklch(99% 0.005 75);border:1px solid oklch(89% 0.015 60);border-radius:16px;padding:20px;display:flex;align-items:center;gap:16px;">
+          <div style="width:54px;height:54px;border-radius:14px;background:{{ st.tint }};display:flex;align-items:center;justify-content:center;font-size:28px;line-height:1;flex:none;">{{ st.emoji }}</div>
+          <div style="min-width:0;">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:600;color:oklch(30% 0.03 50);line-height:1;">{{ st.valor }}</div>
+            <div style="font-size:12.5px;color:oklch(48% 0.02 55);margin-top:6px;font-weight:600;">{{ st.label }}</div>
           </div>
-          <span style="margin-top:auto;display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:oklch(42% 0.07 45);">
-            Entrar al módulo
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- ===== Módulos ===== -->
+    <h2 style="font-size:19px;font-weight:700;color:oklch(32% 0.03 50);margin:0 0 18px;">Tus módulos</h2>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 300px), 1fr));gap:22px;">
+      <sc-for list="{{ modules }}" as="mod" hint-placeholder-count="3">
+        <a class="modcard" href="{{ mod.href }}" style="display:flex;flex-direction:column;border:1px solid oklch(89% 0.015 60);border-radius:20px;overflow:hidden;background:oklch(99% 0.005 75);box-shadow:0 1px 2px oklch(20% 0.02 50 / 0.04);">
+          <div style="background:{{ mod.band }};padding:30px 26px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:52px;line-height:1;">{{ mod.emoji }}</span>
+          </div>
+          <div style="padding:22px 24px;display:flex;flex-direction:column;gap:8px;flex:1;">
+            <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:{{ mod.tagColor }};">{{ mod.tag }}</span>
+            <h3 style="font-size:19px;font-weight:700;color:oklch(28% 0.03 50);margin:0;">{{ mod.title }}</h3>
+            <p style="font-size:14px;color:oklch(48% 0.02 55);margin:0;line-height:1.5;">{{ mod.description }}</p>
+            <span class="go" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:{{ mod.tagColor }};transition:gap .18s;">
+              Entrar al módulo
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </div>
         </a>
       </sc-for>
     </div>
 
   </main>
+
+  <footer style="text-align:center;padding:20px 16px 28px;font-size:12.5px;color:oklch(50% 0.02 55);">
+    Creado por <b style="color:oklch(35% 0.03 50);">Andersson Cortes</b> y
+    <a onclick="{{ abrirAbout }}" style="color:oklch(48% 0.11 55);font-weight:700;cursor:pointer;">Res Cogitans</a>
+  </footer>
+
+  <!-- Modal: Acerca de Res Cogitans -->
+  <div onclick="{{ onAboutOverlay }}" style="position:fixed;inset:0;background:oklch(20% 0.03 45 / 0.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:200;opacity:{{ aboutOpacity }};visibility:{{ aboutVis }};transition:opacity .18s, visibility .18s;">
+    <div style="background:oklch(99% 0.005 75);max-width:560px;width:100%;max-height:86vh;overflow-y:auto;border-radius:20px;padding:clamp(26px,4vw,38px);box-shadow:0 24px 60px oklch(15% 0.03 50 / 0.4);">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+        <img src="logo-512.png" alt="" style="width:44px;height:44px;border-radius:11px;object-fit:cover;"/>
+        <div style="line-height:1.1;">
+          <div style="font-family:'Fraunces',serif;font-size:21px;font-weight:700;color:oklch(28% 0.03 50);">Res Cogitans</div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;color:oklch(55% 0.1 60);">EL ARTE DE EDUCAR</div>
+        </div>
+        <div style="flex:1;"></div>
+        <div onclick="{{ cerrarAbout }}" style="cursor:pointer;font-size:24px;line-height:1;color:oklch(55% 0.02 50);width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:oklch(95% 0.01 65);">&times;</div>
+      </div>
+      <p style="font-size:15px;line-height:1.72;color:oklch(35% 0.02 50);margin:0 0 16px;font-family:'Fraunces',serif;">Res Cogitans es un proyecto que busca reivindicar el arte creador de los docentes, pues son Artesanos en su enseñar. Por esa razón, y sin descanso, se busca crear herramientas digitales, físicas y epistémicas que permitan al docente reivindicarse en su hacer social y político, mostrándose como un sabedor que une intelecto y materialidad (producción real), además de estar autorizado a ejercer bajo su razón intelectual y sus años de experiencia, cualquier tipo de transformación y decisión. Esto reivindica al docente como experto de la enseñanza, pues nadie más que él sabe el complejo Arte de Educar.</p>
+      <div style="border-top:1px solid oklch(90% 0.015 60);padding-top:14px;font-size:13.5px;color:oklch(45% 0.03 50);font-style:italic;">Att: Andersson Cortes y Res Cogitans</div>
+    </div>
+  </div>
+
 </div>
 
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 class Component extends DCLogic {
-  state = { userName: '', isAdmin: false };
+  state = {
+    userName: '', isAdmin: false, menuOpen: false, now: new Date(),
+    nMaterias: 0, nActividades: 0, nEstudiantes: 0, loadedStats: false,
+    aboutOpen: false
+  };
 
   async componentDidMount() {
     try {
+      while (!window.__agendaSession) { await new Promise(r => setTimeout(r, 20)); }
       const s = await window.__agendaSession;
-      const nombre = (s.perfil && s.perfil.nombre) ? s.perfil.nombre : (s.email || '');
-      const isAdmin = !!(s.perfil && s.perfil.rol === 'admin');
+      const nombre = (s && s.perfil && s.perfil.nombre) ? s.perfil.nombre : (s && s.email ? s.email : '');
+      const isAdmin = !!(s && s.perfil && s.perfil.rol === 'admin');
       this.setState({ userName: nombre, isAdmin });
-    } catch (e) {}
+    } catch (e) { console.error('home didMount:', e); }
+
+    // Reloj en vivo.
+    this._timer = setInterval(() => this.setState({ now: new Date() }), 1000);
+
+    // Cerrar menú al hacer clic fuera.
+    this._onDocClick = (e) => {
+      const w = document.getElementById('avatarwrap');
+      if (w && !w.contains(e.target) && this.state.menuOpen) this.setState({ menuOpen: false });
+    };
+    document.addEventListener('click', this._onDocClick);
+
+    // Contadores reales desde Firestore (asignaturas, planeaciones, seguimientos).
+    try {
+      await (async () => { while (!window.__agendaDataReady) { await new Promise(r => setTimeout(r, 15)); } return window.__agendaDataReady; })();
+      const [materias, actividades, estudiantes] = await Promise.all([
+        window.AgendaData.getList('materias'),
+        window.AgendaData.getList('actividades'),
+        window.AgendaData.getList('seguimiento_estudiantes')
+      ]);
+      this.setState({
+        nMaterias: materias.length,
+        nActividades: actividades.length,
+        nEstudiantes: estudiantes.length,
+        loadedStats: true
+      });
+    } catch (e) { console.error('home stats:', e); }
+  }
+
+  componentWillUnmount() {
+    if (this._timer) clearInterval(this._timer);
+    if (this._onDocClick) document.removeEventListener('click', this._onDocClick);
   }
 
   renderVals() {
     const userName = this.state.userName || 'Docente';
+    const now = this.state.now || new Date();
+    const reloj = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    const fecha = now.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const open = !!this.state.menuOpen;
+
     return {
       userName,
       userInitial: (userName.charAt(0) || 'D').toUpperCase(),
       isAdmin: this.state.isAdmin,
-      greeting: 'Hoy es un buen día para enseñar',
+      roleLabel: this.state.isAdmin ? 'Administrador' : 'Docente',
+      reloj, fecha,
+      menuOpacity: open ? '1' : '0',
+      menuVis: open ? 'visible' : 'hidden',
+      menuTransform: open ? 'translateY(0)' : 'translateY(-6px)',
+      chevronRot: open ? 'rotate(180deg)' : 'rotate(0deg)',
+      toggleMenu: (e) => { e.stopPropagation(); this.setState({ menuOpen: !this.state.menuOpen }); },
       cerrarSesion: () => window.__cerrarSesion && window.__cerrarSesion(),
+      abrirAbout: () => this.setState({ aboutOpen: true }),
+      cerrarAbout: () => this.setState({ aboutOpen: false }),
+      onAboutOverlay: (e) => { if (e.target === e.currentTarget) this.setState({ aboutOpen: false }); },
+      aboutOpen: this.state.aboutOpen,
+      aboutOpacity: this.state.aboutOpen ? '1' : '0',
+      aboutVis: this.state.aboutOpen ? 'visible' : 'hidden',
+      stats: [
+        { emoji: '📚', valor: String(this.state.nMaterias), label: 'Asignaturas', tint: 'oklch(88% 0.05 55)' },
+        { emoji: '📝', valor: String(this.state.nActividades), label: 'Planeaciones planificadas', tint: 'oklch(86% 0.06 40)' },
+        { emoji: '👥', valor: String(this.state.nEstudiantes), label: 'Seguimientos de estudiantes', tint: 'oklch(88% 0.055 70)' }
+      ],
       modules: [
         {
           title: 'Creación de Clases',
-          description: 'Planifica y organiza el contenido, materiales y horarios de tus clases.',
-          emoji: '📘',
-          tint: 'oklch(88% 0.04 55)',
+          description: 'Planifica el contenido, materiales y horarios de tus clases.',
+          emoji: '📘', tag: 'Planeación',
+          band: 'linear-gradient(135deg, oklch(72% 0.1 60), oklch(62% 0.11 48))',
+          tagColor: 'oklch(45% 0.11 48)',
           href: 'Creacion de Clases.dc.html'
         },
         {
           title: 'Participación de Clase',
-          description: 'Registra la asistencia y participación de tus estudiantes en cada sesión.',
-          emoji: '🙋',
-          tint: 'oklch(85% 0.05 40)',
+          description: 'Registra la participación de tus estudiantes en cada sesión.',
+          emoji: '🙋', tag: 'Participación',
+          band: 'linear-gradient(135deg, oklch(70% 0.1 40), oklch(58% 0.13 32))',
+          tagColor: 'oklch(46% 0.13 34)',
           href: 'Participacion de Clase.dc.html'
         },
         {
           title: 'Seguimiento de Estudiantes',
-          description: 'Consulta el progreso y desempeño individual de cada estudiante.',
-          emoji: '📈',
-          tint: 'oklch(87% 0.045 70)',
+          description: 'Da seguimiento al progreso y las situaciones de cada estudiante.',
+          emoji: '📈', tag: 'Seguimiento',
+          band: 'linear-gradient(135deg, oklch(72% 0.1 78), oklch(62% 0.11 68))',
+          tagColor: 'oklch(46% 0.12 68)',
           href: 'Seguimiento de Estudiantes.dc.html'
         }
       ]
