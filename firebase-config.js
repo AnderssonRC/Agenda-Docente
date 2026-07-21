@@ -7,7 +7,11 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCGwWeZOgqgwQlQw57YuM1u778v9--ct4M",
@@ -20,4 +24,20 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Firestore con caché local persistente: guarda una copia de los datos en el
+// navegador. Así, en visitas siguientes los datos aparecen al instante desde
+// el disco mientras se sincroniza con la nube en segundo plano.
+// persistentMultipleTabManager permite tener varias pestañas abiertas sin error.
+let dbInstance;
+try {
+  dbInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+} catch (e) {
+  // Si el navegador no soporta persistencia (modo privado antiguo, etc.),
+  // cae a Firestore normal sin caché para no romper la app.
+  const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  dbInstance = getFirestore(app);
+}
+export const db = dbInstance;
