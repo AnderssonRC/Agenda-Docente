@@ -90,6 +90,9 @@
         <div style="display:flex;align-items:center;gap:10px;padding:12px 15px 11px;border-bottom:1px dashed oklch(88% 0.014 60);">
           <div style="flex:1;min-width:0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:oklch(45% 0.02 55);">{{ grupo.titulo }}</div>
           <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 9px;border-radius:4px;color:{{ grupo.pendientesColor }};border:1px {{ grupo.pendientesBorderStyle }} {{ grupo.pendientesColor }};background:{{ grupo.pendientesBg }};white-space:nowrap;">{{ grupo.pendientesTexto }}</span>
+          <button onclick="{{ grupo.onEliminarMateria }}" title="Eliminar asignatura" style="flex-shrink:0;width:28px;height:28px;border-radius:6px;border:1px solid oklch(88% 0.014 60);background:transparent;color:oklch(55% 0.12 25);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H6a1 1 0 01-1-1V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
         <div style="padding:2px 12px 10px;">
           <sc-if value="{{ grupo.vacio }}" hint-placeholder-val="{{ false }}">
@@ -201,7 +204,7 @@
           <input type="text" value="{{ materiaForm.nombre }}" onchange="{{ onMateriaNombre }}" placeholder="Filosofía" style="width:100%;padding:10px 12px;border:1.5px solid oklch(88% 0.014 60);border-radius:6px;font-size:14px;box-sizing:border-box;background:oklch(99% 0.005 75);color:oklch(28% 0.03 50);"/>
         </div>
         <div style="margin-bottom:16px;">
-          <label style="display:block;font-size:11px;font-weight:700;margin-bottom:5px;color:oklch(40% 0.08 35);text-transform:uppercase;letter-spacing:0.07em;">Curso <span style="color:oklch(65% 0.015 60);font-weight:400;text-transform:none;">· opcional</span></label>
+          <label style="display:block;font-size:11px;font-weight:700;margin-bottom:5px;color:oklch(40% 0.08 35);text-transform:uppercase;letter-spacing:0.07em;">Curso <span style="color:oklch(65% 0.015 60);font-weight:400;text-transform:none;">· agrupa las asignaturas de un mismo curso</span></label>
           <input type="text" value="{{ materiaForm.curso }}" onchange="{{ onMateriaCurso }}" placeholder="Décimo A" style="width:100%;padding:10px 12px;border:1.5px solid oklch(88% 0.014 60);border-radius:6px;font-size:14px;box-sizing:border-box;background:oklch(99% 0.005 75);color:oklch(28% 0.03 50);"/>
         </div>
         <div style="margin-bottom:18px;">
@@ -395,9 +398,35 @@ class Component extends DCLogic {
     await this.persistMaterias(nuevas);
   }
 
+  async eliminarMateria(id) {
+    const m = this.state.materias.find(x => x.id === id);
+    if (!m) return;
+    const nActs = this.state.actividades.filter(a => a.materiaId === id).length;
+    const nombre = m.curso ? (m.nombre + ' · ' + m.curso) : m.nombre;
+    const aviso = nActs > 0
+      ? '¿Eliminar la asignatura "' + nombre + '"? Se borrarán también sus ' + nActs + ' actividad' + (nActs !== 1 ? 'es' : '') + '. Esta acción no se puede deshacer.'
+      : '¿Eliminar la asignatura "' + nombre + '"?';
+    if (!confirm(aviso)) return;
+    const materias = this.state.materias.filter(x => x.id !== id);
+    const actividades = this.state.actividades.filter(a => a.materiaId !== id);
+    // Si la vista actual era el curso de esta materia y ya no quedan materias en él, vuelve a "hoy".
+    const cursoDe = (mm) => (mm.curso && mm.curso.trim()) ? mm.curso.trim() : '__sin_curso__';
+    const cursoBorrado = cursoDe(m);
+    const quedanEnCurso = materias.some(mm => cursoDe(mm) === cursoBorrado);
+    const nuevaVista = (this.state.view === cursoBorrado && !quedanEnCurso) ? 'hoy' : this.state.view;
+    this.setState({ materias, actividades, view: nuevaVista });
+    await Promise.all([this.persistMaterias(materias), this.persistActividades(actividades)]);
+  }
+
   openActividadModal() {
     if (this.state.materias.length === 0) { this.openMateriaModal(); return; }
-    const defaultMateria = this.state.view !== 'hoy' ? this.state.view : this.state.materias[0].id;
+    // Si la vista es un curso, sugiere la primera materia de ese curso; si no, la primera de todas.
+    const cursoDe = (m) => (m.curso && m.curso.trim()) ? m.curso.trim() : '__sin_curso__';
+    let defaultMateria = this.state.materias[0].id;
+    if (this.state.view !== 'hoy') {
+      const enCurso = this.state.materias.find(m => cursoDe(m) === this.state.view);
+      if (enCurso) defaultMateria = enCurso.id;
+    }
     this.setState({ actModalOpen: true, editingId: null, form: { ...blankForm(), materiaId: defaultMateria } });
   }
   openEditar(id) {
@@ -440,27 +469,37 @@ class Component extends DCLogic {
     const hoy = todayLocal();
     const fechaHoyTexto = new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
 
+    // Cursos únicos (en orden de aparición). Las materias sin curso van a "Sin curso".
+    const SIN_CURSO = '__sin_curso__';
+    const cursoDe = (m) => (m.curso && m.curso.trim()) ? m.curso.trim() : SIN_CURSO;
+    const cursosOrden = [];
+    s.materias.forEach(m => { const c = cursoDe(m); if (cursosOrden.indexOf(c) === -1) cursosOrden.push(c); });
+
     const tabs = [
       { id: 'hoy', label: 'Hoy', onClick: () => this.setView('hoy'),
         color: s.view === 'hoy' ? 'oklch(40% 0.08 35)' : 'oklch(65% 0.015 60)',
         bg: s.view === 'hoy' ? 'oklch(96% 0.012 75)' : 'transparent',
         font: s.view === 'hoy' ? "'Fraunces',serif" : "'Manrope',sans-serif" }
-    ].concat(s.materias.map(m => ({
-      id: m.id, label: m.curso ? m.nombre + ' · ' + m.curso : m.nombre,
-      onClick: () => this.setView(m.id),
-      color: s.view === m.id ? 'oklch(40% 0.08 35)' : 'oklch(65% 0.015 60)',
-      bg: s.view === m.id ? 'oklch(96% 0.012 75)' : 'transparent',
-      font: s.view === m.id ? "'Fraunces',serif" : "'Manrope',sans-serif"
+    ].concat(cursosOrden.map(c => ({
+      id: c, label: c === SIN_CURSO ? 'Sin curso' : c,
+      onClick: () => this.setView(c),
+      color: s.view === c ? 'oklch(40% 0.08 35)' : 'oklch(65% 0.015 60)',
+      bg: s.view === c ? 'oklch(96% 0.012 75)' : 'transparent',
+      font: s.view === c ? "'Fraunces',serif" : "'Manrope',sans-serif"
     })));
+
+    // Materias que pertenecen a la vista actual (un curso, o todas si es "hoy").
+    const materiasDeVista = s.view === 'hoy' ? s.materias : s.materias.filter(m => cursoDe(m) === s.view);
+    const idsMateriasVista = materiasDeVista.map(m => m.id);
 
     let baseActs;
     if (s.view === 'hoy') baseActs = s.actividades.filter(a => a.fecha === hoy);
-    else baseActs = s.actividades.filter(a => a.materiaId === s.view);
+    else baseActs = s.actividades.filter(a => idsMateriasVista.indexOf(a.materiaId) !== -1);
 
     const planeadas = baseActs.filter(a => a.estado === 'Planeada').length;
     const realizadas = baseActs.filter(a => a.estado === 'Realizada').length;
 
-    const materiasEnVista = s.view === 'hoy' ? s.materias.filter(m => baseActs.some(a => a.materiaId === m.id)) : s.materias.filter(m => m.id === s.view);
+    const materiasEnVista = s.view === 'hoy' ? s.materias.filter(m => baseActs.some(a => a.materiaId === m.id)) : materiasDeVista;
 
     const grupos = materiasEnVista.map(m => {
       const todas = baseActs.filter(a => a.materiaId === m.id).slice().sort((a, b) => {
@@ -472,6 +511,7 @@ class Component extends DCLogic {
       return {
         titulo: m.curso ? m.nombre + ' · ' + m.curso : m.nombre,
         color: m.color,
+        onEliminarMateria: () => this.eliminarMateria(m.id),
         vacio: visibles.length === 0,
         pendientesTexto: pendientes === 0 ? '✓ al día' : pendientes + ' pendiente' + (pendientes !== 1 ? 's' : ''),
         pendientesColor: pendientes === 0 ? 'oklch(45% 0.08 145)' : 'oklch(45% 0.1 70)',
