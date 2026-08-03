@@ -80,6 +80,7 @@
             <div style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:oklch(24% 0.06 50);line-height:1.2;">Ruleta de participación</div>
             <div style="font-size:11.5px;font-weight:600;color:oklch(34% 0.07 50);margin-top:3px;">{{ ruleta.subtitulo }}</div>
           </div>
+          <button onclick="{{ ruleta.onReiniciar }}" title="Empezar la ronda desde cero" style="padding:11px 14px;border-radius:9px;border:1.5px solid oklch(38% 0.07 50);background:transparent;color:oklch(26% 0.05 50);font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;display:{{ ruleta.reiniciarVis }};" style-hover="background:oklch(80% 0.12 60);">↻ Desde cero</button>
           <button onclick="{{ ruleta.onGirar }}" style="padding:11px 20px;border-radius:9px;border:none;background:oklch(26% 0.05 50);color:oklch(96% 0.05 65);font-size:14px;font-weight:700;font-family:'Fraunces',serif;cursor:pointer;flex-shrink:0;" style-hover="background:oklch(34% 0.06 50);">{{ ruleta.btnTexto }}</button>
         </div>
 
@@ -258,7 +259,9 @@ const dataLayer = {
   async getEstudiantes() { return window.AgendaData.getList('participacion_estudiantes'); },
   async saveEstudiantes(list) { return window.AgendaData.saveList('participacion_estudiantes', list); },
   async getRegistros() { return window.AgendaData.getList('participacion_registros'); },
-  async saveRegistros(list) { return window.AgendaData.saveList('participacion_registros', list); }
+  async saveRegistros(list) { return window.AgendaData.saveList('participacion_registros', list); },
+  async getRondas() { return window.AgendaData.getList('participacion_ruleta'); },
+  async saveRondas(list) { return window.AgendaData.saveList('participacion_ruleta', list); }
 };
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -278,24 +281,26 @@ class Component extends DCLogic {
     estModalOpen: false, estForm: { listado: '', cursoId: '' },
     viewingId: null,
     slideForm: { cantidad: 1, motivo: '' },
-    ruletaUsados: [], ruletaActual: null
+    rondas: [], ruletaActual: null
   };
 
   async componentDidMount() {
     await (async () => { while (!window.__agendaDataReady) { await new Promise(r => setTimeout(r, 15)); } return window.__agendaDataReady; })();  // capa Firebase + sesión lista
-    const [cursos, estudiantes, registros] = await Promise.all([
+    const [cursos, estudiantes, registros, rondas] = await Promise.all([
       dataLayer.getCursos(),
       dataLayer.getEstudiantes(),
-      dataLayer.getRegistros()
+      dataLayer.getRegistros(),
+      dataLayer.getRondas()
     ]);
-    this.setState({ loaded: true, cursos, estudiantes, registros });
+    this.setState({ loaded: true, cursos, estudiantes, registros, rondas: rondas || [] });
   }
 
   async persistCursos(l) { await dataLayer.saveCursos(l); }
   async persistEstudiantes(l) { await dataLayer.saveEstudiantes(l); }
   async persistRegistros(l) { await dataLayer.saveRegistros(l); }
+  async persistRondas(l) { await dataLayer.saveRondas(l); }
 
-  setView(id) { this.setState({ view: id, ruletaUsados: [], ruletaActual: null }); }
+  setView(id) { this.setState({ view: id, ruletaActual: null }); }
 
   /* ---------- Ruleta de participación ---------- */
   estudiantesDeVista() {
@@ -303,17 +308,38 @@ class Component extends DCLogic {
     return s.view === 'todos' ? s.estudiantes : s.estudiantes.filter(e => e.cursoId === s.view);
   }
 
-  girarRuleta() {
+  /* Los estudiantes que ya pasaron se guardan en Firestore, una ronda por vista/curso. */
+  usadosDeVista(view) {
+    const ronda = this.state.rondas.find(r => r.id === view);
+    return (ronda && Array.isArray(ronda.usados)) ? ronda.usados : [];
+  }
+
+  rondasConUsados(view, usados) {
+    const existe = this.state.rondas.some(r => r.id === view);
+    const ahora = Date.now();
+    return existe
+      ? this.state.rondas.map(r => r.id === view ? { ...r, usados, actualizada: ahora } : r)
+      : [...this.state.rondas, { id: view, usados, actualizada: ahora }];
+  }
+
+  async girarRuleta() {
     const s = this.state;
-    const disponibles = this.estudiantesDeVista().filter(e => s.ruletaUsados.indexOf(e.id) === -1);
-    if (disponibles.length === 0) { this.reiniciarRuleta(); return; }
+    const usados = this.usadosDeVista(s.view);
+    const disponibles = this.estudiantesDeVista().filter(e => usados.indexOf(e.id) === -1);
+    if (disponibles.length === 0) { await this.reiniciarRuleta(); return; }
     const min = Math.min.apply(null, disponibles.map(e => e.puntosTotales || 0));
     const candidatos = disponibles.filter(e => (e.puntosTotales || 0) === min);
     const elegido = candidatos[Math.floor(Math.random() * candidatos.length)];
-    this.setState({ ruletaActual: elegido.id, ruletaUsados: [...s.ruletaUsados, elegido.id] });
+    const rondas = this.rondasConUsados(s.view, [...usados, elegido.id]);
+    this.setState({ ruletaActual: elegido.id, rondas });
+    await this.persistRondas(rondas);
   }
 
-  reiniciarRuleta() { this.setState({ ruletaUsados: [], ruletaActual: null }); }
+  async reiniciarRuleta() {
+    const rondas = this.rondasConUsados(this.state.view, []);
+    this.setState({ ruletaActual: null, rondas });
+    await this.persistRondas(rondas);
+  }
 
   openCursoModal() { this.setState({ cursoModalOpen: true, cursoForm: { nombre: '', descripcion: '' } }); }
   closeCursoModal() { this.setState({ cursoModalOpen: false }); }
@@ -324,7 +350,7 @@ class Component extends DCLogic {
     const cursos = this.state.cursos;
     const nuevo = { id: uid(), nombre: nombre.trim(), descripcion: descripcion.trim(), color: COLORS[cursos.length % COLORS.length] };
     const nuevos = [...cursos, nuevo];
-    this.setState({ cursos: nuevos, cursoModalOpen: false, view: nuevo.id, ruletaUsados: [], ruletaActual: null });
+    this.setState({ cursos: nuevos, cursoModalOpen: false, view: nuevo.id, ruletaActual: null });
     await this.persistCursos(nuevos);
   }
 
@@ -380,11 +406,12 @@ class Component extends DCLogic {
     if (!confirm('¿Eliminar este estudiante y su historial de puntos?')) return;
     const estudiantes = this.state.estudiantes.filter(e => e.id !== id);
     const registros = this.state.registros.filter(r => r.estudianteId !== id);
-    const ruletaUsados = this.state.ruletaUsados.filter(x => x !== id);
+    const rondas = this.state.rondas.map(r => ({ ...r, usados: (r.usados || []).filter(x => x !== id) }));
     const ruletaActual = this.state.ruletaActual === id ? null : this.state.ruletaActual;
-    this.setState({ estudiantes, registros, viewingId: null, ruletaUsados, ruletaActual });
+    this.setState({ estudiantes, registros, viewingId: null, rondas, ruletaActual });
     await this.persistEstudiantes(estudiantes);
     await this.persistRegistros(registros);
+    await this.persistRondas(rondas);
   }
   onSlideOverlayClick(e) { if (e.target === e.currentTarget) this.closeSlide(); }
   setSlideField(field, value) { this.setState(s => ({ slideForm: { ...s.slideForm, [field]: value } })); }
@@ -425,7 +452,8 @@ class Component extends DCLogic {
     });
 
     /* ---------- Ruleta ---------- */
-    const disponibles = estudiantesVista.filter(e => s.ruletaUsados.indexOf(e.id) === -1);
+    const usadosVista = this.usadosDeVista(s.view);
+    const disponibles = estudiantesVista.filter(e => usadosVista.indexOf(e.id) === -1);
     const ruletaEst = s.ruletaActual ? s.estudiantes.find(e => e.id === s.ruletaActual) : null;
     const cursoRuleta = ruletaEst ? s.cursos.find(c => c.id === ruletaEst.cursoId) : null;
     const agotada = estudiantesVista.length > 0 && disponibles.length === 0;
@@ -435,6 +463,10 @@ class Component extends DCLogic {
         : 'Faltan por pasar ' + disponibles.length + ' de ' + estudiantesVista.length + ' · prioriza a quienes tienen menos puntos',
       btnTexto: agotada ? '↻ Nueva ronda' : (ruletaEst ? '🎲 Siguiente' : '🎲 Girar ruleta'),
       onGirar: () => (agotada ? this.reiniciarRuleta() : this.girarRuleta()),
+      reiniciarVis: (usadosVista.length > 0 && !agotada) ? 'inline-flex' : 'none',
+      onReiniciar: () => {
+        if (confirm('¿Empezar la ronda desde cero? Todos los estudiantes volverán a entrar en la ruleta (los puntos no se borran).')) this.reiniciarRuleta();
+      },
       elegidoVis: ruletaEst ? 'flex' : 'none',
       agotadaVis: agotada ? 'block' : 'none',
       nombre: ruletaEst ? ruletaEst.nombre : '',
