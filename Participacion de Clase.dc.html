@@ -62,7 +62,7 @@
     </sc-if>
 
     <sc-if value="{{ hayCursos }}" hint-placeholder-val="{{ true }}">
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:22px;">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;">
       <div style="background:oklch(92% 0.02 225);border-radius:8px;padding:12px 14px;">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500;color:oklch(30% 0.05 235);line-height:1;">{{ statEstudiantes }}</div>
         <div style="font-size:11px;color:oklch(45% 0.02 235);margin-top:5px;font-weight:600;">estudiantes</div>
@@ -72,6 +72,33 @@
         <div style="font-size:11px;color:oklch(45% 0.02 235);margin-top:5px;font-weight:600;">puntos otorgados hoy</div>
       </div>
     </div>
+
+    <sc-if value="{{ hayEstudiantes }}" hint-placeholder-val="{{ false }}">
+      <div style="background:oklch(72% 0.16 58);border:1px solid oklch(62% 0.17 52);border-radius:12px;padding:14px 16px;margin-bottom:20px;box-shadow:0 4px 16px oklch(60% 0.14 55 / 0.28);">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:150px;">
+            <div style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:oklch(24% 0.06 50);line-height:1.2;">Ruleta de participación</div>
+            <div style="font-size:11.5px;font-weight:600;color:oklch(34% 0.07 50);margin-top:3px;">{{ ruleta.subtitulo }}</div>
+          </div>
+          <button onclick="{{ ruleta.onGirar }}" style="padding:11px 20px;border-radius:9px;border:none;background:oklch(26% 0.05 50);color:oklch(96% 0.05 65);font-size:14px;font-weight:700;font-family:'Fraunces',serif;cursor:pointer;flex-shrink:0;" style-hover="background:oklch(34% 0.06 50);">{{ ruleta.btnTexto }}</button>
+        </div>
+
+        <div style="margin-top:12px;background:oklch(98% 0.015 65);border-radius:10px;padding:12px 14px;display:{{ ruleta.elegidoVis }};align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;">
+            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:oklch(52% 0.15 52);">Le toca participar a</div>
+            <div style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:oklch(24% 0.03 240);line-height:1.25;margin-top:2px;">{{ ruleta.nombre }}</div>
+            <div style="font-size:11.5px;color:oklch(50% 0.02 230);margin-top:2px;">{{ ruleta.detalle }}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;flex-shrink:0;">
+            <button onclick="{{ ruleta.onMinus }}" style="width:38px;height:38px;border-radius:50%;border:1.5px solid oklch(55% 0.18 25);background:transparent;color:oklch(45% 0.18 25);font-size:20px;font-weight:700;cursor:pointer;" style-hover="background:oklch(93% 0.05 25);">−</button>
+            <div style="min-width:46px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;color:oklch(28% 0.03 240);">{{ ruleta.total }}</div>
+            <button onclick="{{ ruleta.onPlus }}" style="width:38px;height:38px;border-radius:50%;border:none;background:oklch(48% 0.13 150);color:oklch(97% 0.02 150);font-size:20px;font-weight:700;cursor:pointer;" style-hover="background:oklch(55% 0.13 150);">+</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;font-size:12px;font-weight:600;color:oklch(26% 0.05 50);display:{{ ruleta.agotadaVis }};">Ya participaron todos los estudiantes de esta vista. Pulsa «Nueva ronda» para volver a empezar.</div>
+      </div>
+    </sc-if>
 
     <sc-if value="{{ sinEstudiantes }}" hint-placeholder-val="{{ false }}">
       <div style="text-align:center;padding:52px 20px;">
@@ -250,7 +277,8 @@ class Component extends DCLogic {
     cursoModalOpen: false, cursoForm: { nombre: '', descripcion: '' },
     estModalOpen: false, estForm: { listado: '', cursoId: '' },
     viewingId: null,
-    slideForm: { cantidad: 1, motivo: '' }
+    slideForm: { cantidad: 1, motivo: '' },
+    ruletaUsados: [], ruletaActual: null
   };
 
   async componentDidMount() {
@@ -267,7 +295,25 @@ class Component extends DCLogic {
   async persistEstudiantes(l) { await dataLayer.saveEstudiantes(l); }
   async persistRegistros(l) { await dataLayer.saveRegistros(l); }
 
-  setView(id) { this.setState({ view: id }); }
+  setView(id) { this.setState({ view: id, ruletaUsados: [], ruletaActual: null }); }
+
+  /* ---------- Ruleta de participación ---------- */
+  estudiantesDeVista() {
+    const s = this.state;
+    return s.view === 'todos' ? s.estudiantes : s.estudiantes.filter(e => e.cursoId === s.view);
+  }
+
+  girarRuleta() {
+    const s = this.state;
+    const disponibles = this.estudiantesDeVista().filter(e => s.ruletaUsados.indexOf(e.id) === -1);
+    if (disponibles.length === 0) { this.reiniciarRuleta(); return; }
+    const min = Math.min.apply(null, disponibles.map(e => e.puntosTotales || 0));
+    const candidatos = disponibles.filter(e => (e.puntosTotales || 0) === min);
+    const elegido = candidatos[Math.floor(Math.random() * candidatos.length)];
+    this.setState({ ruletaActual: elegido.id, ruletaUsados: [...s.ruletaUsados, elegido.id] });
+  }
+
+  reiniciarRuleta() { this.setState({ ruletaUsados: [], ruletaActual: null }); }
 
   openCursoModal() { this.setState({ cursoModalOpen: true, cursoForm: { nombre: '', descripcion: '' } }); }
   closeCursoModal() { this.setState({ cursoModalOpen: false }); }
@@ -278,7 +324,7 @@ class Component extends DCLogic {
     const cursos = this.state.cursos;
     const nuevo = { id: uid(), nombre: nombre.trim(), descripcion: descripcion.trim(), color: COLORS[cursos.length % COLORS.length] };
     const nuevos = [...cursos, nuevo];
-    this.setState({ cursos: nuevos, cursoModalOpen: false, view: nuevo.id });
+    this.setState({ cursos: nuevos, cursoModalOpen: false, view: nuevo.id, ruletaUsados: [], ruletaActual: null });
     await this.persistCursos(nuevos);
   }
 
@@ -334,7 +380,9 @@ class Component extends DCLogic {
     if (!confirm('¿Eliminar este estudiante y su historial de puntos?')) return;
     const estudiantes = this.state.estudiantes.filter(e => e.id !== id);
     const registros = this.state.registros.filter(r => r.estudianteId !== id);
-    this.setState({ estudiantes, registros, viewingId: null });
+    const ruletaUsados = this.state.ruletaUsados.filter(x => x !== id);
+    const ruletaActual = this.state.ruletaActual === id ? null : this.state.ruletaActual;
+    this.setState({ estudiantes, registros, viewingId: null, ruletaUsados, ruletaActual });
     await this.persistEstudiantes(estudiantes);
     await this.persistRegistros(registros);
   }
@@ -375,6 +423,28 @@ class Component extends DCLogic {
         onOpen: () => this.openSlide(e.id)
       };
     });
+
+    /* ---------- Ruleta ---------- */
+    const disponibles = estudiantesVista.filter(e => s.ruletaUsados.indexOf(e.id) === -1);
+    const ruletaEst = s.ruletaActual ? s.estudiantes.find(e => e.id === s.ruletaActual) : null;
+    const cursoRuleta = ruletaEst ? s.cursos.find(c => c.id === ruletaEst.cursoId) : null;
+    const agotada = estudiantesVista.length > 0 && disponibles.length === 0;
+    const ruleta = {
+      subtitulo: agotada
+        ? 'Ronda completa · ' + estudiantesVista.length + ' de ' + estudiantesVista.length + ' ya participaron'
+        : 'Faltan por pasar ' + disponibles.length + ' de ' + estudiantesVista.length + ' · prioriza a quienes tienen menos puntos',
+      btnTexto: agotada ? '↻ Nueva ronda' : (ruletaEst ? '🎲 Siguiente' : '🎲 Girar ruleta'),
+      onGirar: () => (agotada ? this.reiniciarRuleta() : this.girarRuleta()),
+      elegidoVis: ruletaEst ? 'flex' : 'none',
+      agotadaVis: agotada ? 'block' : 'none',
+      nombre: ruletaEst ? ruletaEst.nombre : '',
+      total: ruletaEst ? (ruletaEst.puntosTotales || 0) : 0,
+      detalle: ruletaEst
+        ? ((cursoRuleta ? cursoRuleta.nombre + ' · ' : '') + 'puntos acumulados: ' + (ruletaEst.puntosTotales || 0))
+        : '',
+      onMinus: () => { if (ruletaEst) this.registrarPuntos(ruletaEst.id, -1, 'Participación (ruleta)'); },
+      onPlus: () => { if (ruletaEst) this.registrarPuntos(ruletaEst.id, 1, 'Participación (ruleta)'); }
+    };
 
     const cursoOptions = s.cursos.map(c => ({ id: c.id, label: c.nombre }));
 
@@ -443,6 +513,7 @@ class Component extends DCLogic {
       onSearch: (e) => this.setState({ search: e.target.value }),
       statEstudiantes: estudiantesVista.length, statPuntosHoy: puntosHoy,
       filas,
+      ruleta,
 
       cursoModalOpen: s.cursoModalOpen, cursoForm: s.cursoForm,
       onCursoNombre: (e) => this.setState(st => ({ cursoForm: { ...st.cursoForm, nombre: e.target.value } })),
