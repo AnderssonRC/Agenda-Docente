@@ -1,16 +1,29 @@
-// firebase-config.js
-// Configuración pública de Firebase. En apps web esto es público por diseño:
-// lo que protege la base de datos son las Reglas de Firestore, no estas claves.
+// firebase.js
+// Inicializa Firebase una sola vez para toda la app y reexporta las funciones
+// que se usan. La versión del SDK vive solo aquí.
 //
-// Este archivo exporta `app`, `auth` y `db` ya inicializados usando el SDK
-// modular de Firebase cargado por CDN (ver los <script type="module"> de cada página).
+// La config es pública por diseño: lo que protege los datos son las Reglas
+// de Firestore (firestore.rules), no estas claves.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeFirestore,
+  getFirestore,
   persistentLocalCache,
   persistentMultipleTabManager
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+export {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+export {
+  doc, getDoc, setDoc, updateDoc, deleteDoc,
+  collection, getDocs, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -25,19 +38,15 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Firestore con caché local persistente: guarda una copia de los datos en el
-// navegador. Así, en visitas siguientes los datos aparecen al instante desde
-// el disco mientras se sincroniza con la nube en segundo plano.
-// persistentMultipleTabManager permite tener varias pestañas abiertas sin error.
+// Caché local persistente: los datos aparecen al instante desde el disco
+// y se sincronizan con la nube en segundo plano. Si el navegador no lo
+// soporta, se usa Firestore normal.
 let dbInstance;
 try {
   dbInstance = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
   });
 } catch (e) {
-  // Si el navegador no soporta persistencia (modo privado antiguo, etc.),
-  // cae a Firestore normal sin caché para no romper la app.
-  const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
   dbInstance = getFirestore(app);
 }
 export const db = dbInstance;
