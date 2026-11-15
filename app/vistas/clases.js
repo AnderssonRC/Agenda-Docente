@@ -70,8 +70,17 @@ css("v-clases", `
   .dc-pres{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;height:100%;overflow-y:auto;}
   .dc-pres-lado{border-bottom:1px solid ${BORDE};}
   .dc-pres-pie{grid-column:1;}
+  .dc-pres-bloques{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;}
+  .dc-pres-enum{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:10px;margin-top:12px;list-style:none;padding:0;}
+  .dc-pres-cont p{margin:0 0 .6em;}
+  .dc-mo{width:100%;text-align:left;border:1px solid transparent;background:transparent;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:11px;color:${TINTA};}
+  .dc-mo:hover{background:oklch(94% 0.012 65);}
+  .dc-mo-seg{cursor:pointer;border:none;padding:0;height:9px;border-radius:4px;min-width:6px;transition:background .15s;}
+  .dc-mo-nav{border:1px solid ${BORDE};background:${PAPEL};color:${TINTA2};border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .dc-mo-nav:hover:not(:disabled){border-color:${ACENTO};color:${ACENTO};}
+  .dc-mo-nav:disabled{opacity:.4;cursor:default;}
   @container (min-width:760px){
-    .dc-pres{grid-template-columns:minmax(250px,30%) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;overflow:hidden;}
+    .dc-pres{grid-template-columns:minmax(290px,33%) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;overflow:hidden;}
     .dc-pres-lado{border-bottom:none;border-right:1px solid ${BORDE};}
     .dc-pres-pie{grid-column:1 / -1;}
   }
@@ -123,6 +132,90 @@ function sello(hecha) {
     color: hecha ? "oklch(28% 0.06 145)" : "oklch(45% 0.1 70)",
     bg: hecha ? "oklch(93% 0.03 145)" : "transparent"
   };
+}
+
+/* ---------- lectura cómoda en la presentación ---------- */
+
+const mezcla = (c, p) => "color-mix(in oklab, " + c + " " + p + "%, " + PAPEL + ")";
+/** Texto claro u oscuro según qué tan oscuro sea el color de fondo. */
+function tintaSobre(c) {
+  const claro = "oklch(98% 0.005 75)", oscuro = "oklch(22% 0.02 50)";
+  const ok = /oklch\(\s*([\d.]+)%/.exec(c || "");
+  if (ok) return parseFloat(ok[1]) < 62 ? claro : oscuro;
+  const hx = /^#([0-9a-f]{6})$/i.exec(c || "");
+  if (hx) { const n = parseInt(hx[1], 16); return (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) < 150 ? claro : oscuro; }
+  return oscuro;
+}
+function textoPlano(h) {
+  return String(h || "").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&amp;/g, "&").trim();
+}
+
+/** Separa el detalle de un momento por quién actúa (docente / estudiantes). */
+function rolDe(frase) {
+  if (/^(?:el|la)\s+(?:docente|profesora?|maestr[oa])\b/i.test(frase)) return "Docente";
+  if (/^(?:los|las)\s+(?:estudiantes|alumn[oa]s|niñ[oa]s|grupos|equipos)\b/i.test(frase)) return "Estudiantes";
+  return null;
+}
+function partirPorRol(texto) {
+  const frases = String(texto || "").replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+(?=[¿¡"“A-ZÁÉÍÓÚÑ])/);
+  const grupos = [];
+  for (const f of frases) {
+    const r = rolDe(f);
+    if (r || !grupos.length) grupos.push({ rol: r, texto: f });
+    else grupos[grupos.length - 1].texto += " " + f;
+  }
+  return grupos.some(g => g.rol) ? grupos : null;
+}
+
+/** "Intro: 1. A, 2. B, 3. C" → { intro, items }. Solo si hay al menos 3 seguidos. */
+function partirEnumeracion(t) {
+  const re = /(?:^|\s)(\d{1,2})[.)]\s+/g;
+  const pos = [];
+  let m, esperado = 1;
+  while ((m = re.exec(t))) {
+    if (+m[1] !== esperado) continue;
+    const ini = m.index + (/^\s/.test(m[0]) ? 1 : 0);
+    pos.push([ini, m.index + m[0].length]);
+    esperado++;
+  }
+  if (pos.length < 3) return null;
+  const items = pos.map((p, i) => t.slice(p[1], i + 1 < pos.length ? pos[i + 1][0] : t.length)
+    .trim().replace(/\s*[,;]\s*(?:y\s*)?$/i, "").replace(/\s+y$/i, "").trim());
+  return { intro: t.slice(0, pos[0][0]).trim(), items };
+}
+
+const RE_ETIQUETA = /^(?:<(?:b|strong)>)?\s*([^<:]{2,60}?)\s*(?:<\/(?:b|strong)>)?\s*:\s*(?:<\/(?:b|strong)>)?\s*([\s\S]*)$/i;
+/**
+ * Convierte el contenido (HTML del editor o texto pegado de la IA) en bloques:
+ * tarjetas "Concepto: explicación", preguntas, párrafos e imágenes.
+ * Devuelve null si el contenido ya trae su propia estructura (listas, tablas…).
+ */
+function bloquesContenido(fuente) {
+  const h = String(fuente || "");
+  if (!h.trim() || /<(?:ul|ol|table|h[1-6]|blockquote|pre)\b/i.test(h)) return null;
+  const lineas = h.replace(/\r/g, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(?:div|p)>/gi, "\n").replace(/<(?:div|p)(?:\s[^>]*)?>/gi, "\n")
+    .split("\n").map(l => l.trim()).filter(l => textoPlano(l) || /<img\b/i.test(l));
+  const bloques = [];
+  let grupo = null;
+  for (const l of lineas) {
+    const t = textoPlano(l);
+    if (/<img\b/i.test(l)) { grupo = null; bloques.push({ tipo: "imagen", partes: [l] }); continue; }
+    const m = RE_ETIQUETA.exec(l);
+    const etiqueta = m && !/https?$/i.test(m[1]) && m[1].trim().split(/\s+/).length <= 7;
+    if (etiqueta && !textoPlano(m[2])) {
+      grupo = { tipo: "tarjeta", titulo: textoPlano(m[1]), partes: [] };
+      bloques.push(grupo);
+    } else if (etiqueta) {
+      grupo = null;
+      const titulo = textoPlano(m[1]);
+      bloques.push({ tipo: /pregunta/i.test(titulo) || /\?\s*$/.test(t) ? "pregunta" : "tarjeta", titulo, partes: [m[2]] });
+    } else if (grupo) {
+      grupo.partes.push(l);
+    } else {
+      bloques.push({ tipo: /^¿[^?]+\?$/.test(t) ? "pregunta" : "parrafo", titulo: "", partes: [l] });
+    }
+  }
+  return bloques.length ? bloques : null;
 }
 
 /** Lunes (YYYY-MM-DD) de la semana de una fecha. */
@@ -213,7 +306,7 @@ export default class Clases extends Component {
     iaAbierto: false, iaTexto: "", iaAviso: "",
     materiaModal: null,     // { editId, nombre, curso, color }
     cursoModal: null,       // { original, nombre, color, notas, foco }
-    viewingId: null, verRecordar: false,
+    viewingId: null, verRecordar: false, momento: 0,
     qr: null,               // { url, nombre, img, error }
     hoverSemana: -1
   };
@@ -226,6 +319,12 @@ export default class Clases extends Component {
     this.dejar = watch(["materias", "actividades", K_CURSOS], d =>
       this.setState({ loaded: true, materias: d.materias, actividades: d.actividades, cursosCfg: d[K_CURSOS] }));
     this.teclas = (e) => {
+      if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && this.state.viewingId && !this.state.qr && !this.state.actModalOpen) {
+        const t = e.target;
+        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+        this.irMomento(e.key === "ArrowRight" ? 1 : -1);
+        return;
+      }
       if (e.key !== "Escape") return;
       if (this.state.qr) this.setState({ qr: null });
       else if (this.state.viewingId) this.cerrarPresentacion();
@@ -474,7 +573,13 @@ export default class Clases extends Component {
   }
 
   /* ----- presentación ----- */
-  abrirPresentacion(id) { this.setState({ viewingId: id, verRecordar: false, qr: null }); }
+  abrirPresentacion(id) { this.setState({ viewingId: id, verRecordar: false, qr: null, momento: 0 }); }
+  irMomento(delta) {
+    const a = this.state.actividades.find(x => x.id === this.state.viewingId);
+    const n = a && a.momentos ? a.momentos.length : 0;
+    if (!n) return;
+    this.setState(st => ({ momento: Math.max(0, Math.min(n - 1, (st.momento || 0) + delta)) }));
+  }
   cerrarPresentacion = () => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     this.setState({ viewingId: null, qr: null });
@@ -1006,6 +1111,119 @@ export default class Clases extends Component {
     </div>`;
   }
 
+  /* ----- momentos: barra de tiempo + lista; se despliega el momento activo ----- */
+  renderMomentos(momentos, mins, color) {
+    const act = Math.min(this.state.momento || 0, momentos.length - 1);
+    const sobre = tintaSobre(color);
+    const elegir = (i) => this.setState({ momento: i });
+    let acumulado = 0;
+    return html`
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:26px 0 10px;">
+        <div style=${SECCION}>Momentos</div>
+        ${mins > 0 && html`<div style="font-size:12.5px;font-weight:700;color:${TINTA2};">${mins} min en total</div>`}
+      </div>
+      <div style="display:flex;gap:3px;margin-bottom:12px;" role="tablist" aria-label="Momentos de la clase">
+        ${momentos.map((mo, i) => html`
+          <button class="dc-mo-seg" role="tab" aria-selected=${i === act} onClick=${() => elegir(i)} title=${(mo.nombre || "Momento " + (i + 1)) + (mo.minutos ? " · " + mo.minutos + " min" : "")}
+            style="flex:${parseInt(mo.minutos, 10) || 1} 1 0;background:${i === act ? color : i < act ? mezcla(color, 55) : mezcla(color, 25)};"></button>`)}
+      </div>
+      <ol style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;">
+        ${momentos.map((mo, i) => {
+          const on = i === act;
+          const desde = acumulado;
+          acumulado += parseInt(mo.minutos, 10) || 0;
+          const roles = on && mo.detalle ? partirPorRol(mo.detalle) : null;
+          return html`
+          <li key=${mo.id || i} style="border-radius:12px;${on ? "background:" + PAPEL + ";border:1px solid " + BORDE + ";box-shadow:0 2px 10px oklch(25% 0.03 50 / 0.07);" : "border:1px solid transparent;"}">
+            <button class="dc-mo" onClick=${() => elegir(i)} aria-expanded=${on} style="${on ? "background:transparent;" : ""}">
+              <span style="width:28px;height:28px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;${on ? "background:" + color + ";color:" + sobre + ";" : "background:" + PAPEL + ";color:" + TINTA2 + ";border:1.5px solid " + mezcla(color, 60) + ";"}">${i + 1}</span>
+              <span style="flex:1;min-width:0;">
+                <span style="display:block;font-size:15px;font-weight:700;color:${on ? TINTA : TINTA2};">${mo.nombre || "Momento " + (i + 1)}</span>
+                ${mins > 0 && mo.minutos && html`<span style="display:block;font-size:12px;color:${TINTA3};margin-top:1px;">min ${desde}–${acumulado}</span>`}
+              </span>
+              ${mo.minutos && html`<span style="flex:none;font-size:12.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:${on ? mezcla(color, 25) : "oklch(93% 0.01 65)"};color:${TINTA};">${mo.minutos} min</span>`}
+            </button>
+            ${on && mo.detalle && html`
+              <div style="padding:2px 14px 14px 49px;">
+                ${roles ? roles.map(g => html`
+                  <div style="margin-top:8px;">
+                    ${g.rol && html`<div style="display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:${TINTA2};background:${g.rol === "Docente" ? "oklch(93% 0.02 60)" : mezcla(color, 22)};padding:2px 8px;border-radius:5px;margin-bottom:4px;">${g.rol}</div>`}
+                    <div style="font-size:14.5px;color:oklch(32% 0.02 55);line-height:1.55;">${g.texto}</div>
+                  </div>`)
+                : html`<div style="font-size:14.5px;color:oklch(32% 0.02 55);line-height:1.55;white-space:pre-wrap;">${mo.detalle}</div>`}
+              </div>`}
+          </li>`;
+        })}
+      </ol>
+      ${momentos.length > 1 && html`
+        <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+          <button class="dc-mo-nav" disabled=${act === 0} onClick=${() => this.irMomento(-1)}>← Anterior</button>
+          <button class="dc-mo-nav" disabled=${act === momentos.length - 1} onClick=${() => this.irMomento(1)}>Siguiente →</button>
+          <span style="font-size:11.5px;color:${TINTA3};margin-left:auto;">También con ← →</span>
+        </div>`}`;
+  }
+
+  /* ----- contenido en tarjetas: conceptos, listas numeradas, preguntas ----- */
+  renderContenido(fuente, color) {
+    const TXT = "font-size:clamp(16px,1.3vw,19px);line-height:1.6;color:oklch(30% 0.02 55);";
+    const bloques = bloquesContenido(fuente);
+    if (!bloques) return html`<div class="dc-pres-cont" dangerouslySetInnerHTML=${{ __html: fuente }} style="${TXT}white-space:pre-wrap;max-width:75ch;"></div>`;
+
+    const parte = (p, k) => {
+      const enumr = !/</.test(p) ? partirEnumeracion(textoPlano(p)) : null;
+      if (!enumr) return html`<div key=${k} class="dc-pres-cont" dangerouslySetInnerHTML=${{ __html: p }} style="${TXT}${k ? "margin-top:6px;" : ""}"></div>`;
+      return html`
+        <div key=${k}>
+          ${enumr.intro && html`<div style=${TXT}>${enumr.intro}</div>`}
+          <ol class="dc-pres-enum">
+            ${enumr.items.map((it, i) => {
+              const par = /^(.+?)\s*\(([^()]+)\)\.?$/.exec(it);
+              return html`
+              <li style="display:flex;gap:10px;align-items:flex-start;background:oklch(97.5% 0.008 72);border:1px solid ${BORDE};border-radius:12px;padding:12px 13px;">
+                <span style="width:26px;height:26px;border-radius:50%;flex:none;background:${color};color:${tintaSobre(color)};font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;">${i + 1}</span>
+                <span style="min-width:0;">
+                  <span style="display:block;font-size:clamp(15px,1.2vw,17.5px);font-weight:700;color:${TINTA};line-height:1.3;">${par ? par[1] : it}</span>
+                  ${par && html`<span style="display:block;font-size:clamp(13.5px,1.05vw,15px);color:${TINTA2};margin-top:3px;line-height:1.35;">${par[2]}</span>`}
+                </span>
+              </li>`;
+            })}
+          </ol>
+        </div>`;
+    };
+    const largo = (b) => b.tipo !== "tarjeta" || b.partes.some(p => !/</.test(p) && partirEnumeracion(textoPlano(p))) || b.partes.reduce((n, p) => n + textoPlano(p).length, 0) > 240;
+
+    // Las tarjetas cortas seguidas comparten fila; el resto ocupa todo el ancho.
+    const filas = [];
+    bloques.forEach(b => {
+      const ultima = filas[filas.length - 1];
+      if (!largo(b) && ultima && ultima.corta) ultima.items.push(b);
+      else filas.push({ corta: !largo(b), items: [b] });
+    });
+    const bloque = (b, i) => {
+          if (b.tipo === "imagen") return html`<div key=${i} class="dc-pres-cont" dangerouslySetInnerHTML=${{ __html: b.partes[0] }} style=${TXT}></div>`;
+          if (b.tipo === "parrafo") return html`<div key=${i}>${b.partes.map(parte)}</div>`;
+          if (b.tipo === "pregunta") return html`
+            <div key=${i} style="display:flex;gap:16px;align-items:center;background:${mezcla(color, 16)};border:1px solid ${mezcla(color, 40)};border-radius:16px;padding:clamp(16px,2vw,24px);">
+              <span aria-hidden="true" style="width:46px;height:46px;border-radius:50%;flex:none;background:${color};color:${tintaSobre(color)};font-family:'Fraunces',serif;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;">?</span>
+              <div style="min-width:0;">
+                ${b.titulo && html`<div style="${SECCION}color:${TINTA2};margin-bottom:5px;">${b.titulo}</div>`}
+                ${b.partes.map((p, k) => html`<div key=${k} class="dc-pres-cont" dangerouslySetInnerHTML=${{ __html: p }} style="font-family:'Fraunces',serif;font-size:clamp(19px,1.75vw,26px);font-weight:500;color:${TINTA};line-height:1.4;"></div>`)}
+              </div>
+            </div>`;
+          return html`
+            <article key=${i} style="background:${PAPEL};border:1px solid ${BORDE};border-top:4px solid ${color};border-radius:14px;padding:clamp(14px,1.6vw,20px) clamp(16px,1.8vw,22px);box-shadow:0 1px 3px oklch(20% 0.02 50 / 0.05);">
+              <h3 style="margin:0 0 8px;font-family:'Fraunces',serif;font-size:clamp(18px,1.5vw,22px);font-weight:600;color:${TINTA};line-height:1.25;">${b.titulo}</h3>
+              ${b.partes.map(parte)}
+            </article>`;
+    };
+    return html`
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        ${filas.map((f, i) => f.items.length > 1
+          ? html`<div key=${i} class="dc-pres-bloques">${f.items.map(bloque)}</div>`
+          : bloque(f.items[0], i))}
+      </div>`;
+  }
+
   /* ----- presentación para el docente ----- */
   // Objetivo arriba a la izquierda, palabras clave debajo; descripción y
   // contenido ocupan la mayor parte; abajo la fecha (izquierda) y el título.
@@ -1025,36 +1243,34 @@ export default class Clases extends Component {
       <div style="height:6px;background:${color};flex:none;"></div>
       <div class="dc-pres" style="flex:1;min-height:0;">
 
-        <div class="dc-pres-lado" style="padding:clamp(20px,3vw,40px);overflow-y:auto;background:oklch(97.5% 0.008 72);">
-          <div style="${SECCION}margin-bottom:8px;">Objetivo</div>
-          <div style="font-family:'Fraunces',serif;font-size:clamp(17px,1.7vw,23px);font-weight:500;color:${TINTA};line-height:1.45;">${a.objetivo || html`<i style="color:${TINTA3};">Sin objetivo</i>`}</div>
+        <div class="dc-pres-lado" style="padding:clamp(20px,2.6vw,36px);overflow-y:auto;background:oklch(97.5% 0.008 72);">
+          <div style="background:${PAPEL};border:1px solid ${BORDE};border-left:5px solid ${color};border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px oklch(20% 0.02 50 / 0.05);">
+            <div style="${SECCION}margin-bottom:7px;">Objetivo</div>
+            <div style="font-family:'Fraunces',serif;font-size:clamp(17px,1.45vw,21px);font-weight:500;color:${TINTA};line-height:1.45;">${a.objetivo || html`<i style="color:${TINTA3};">Sin objetivo</i>`}</div>
+          </div>
 
           ${kws.length > 0 && html`
-            <div style="${SECCION}margin:24px 0 9px;">Palabras clave</div>
+            <div style="${SECCION}margin:22px 0 9px;">Palabras clave</div>
             <div style="display:flex;flex-wrap:wrap;gap:7px;">
-              ${kws.map(kw => html`<span style="font-family:'IBM Plex Mono',monospace;font-size:clamp(13px,1.1vw,15px);padding:6px 12px;background:${PAPEL};border:1px solid ${BORDE};color:oklch(30% 0.02 55);border-radius:7px;">${kw}</span>`)}
+              ${kws.map(kw => html`<span style="font-size:clamp(13.5px,1.05vw,15px);font-weight:600;padding:6px 13px;background:${mezcla(color, 22)};border:1px solid ${mezcla(color, 45)};color:${TINTA};border-radius:999px;">${kw}</span>`)}
             </div>`}
 
-          ${momentos.length > 0 && html`
-            <div style="${SECCION}margin:26px 0 10px;">Momentos${mins ? " · " + mins + " min" : ""}</div>
-            <ol style="list-style:none;margin:0;padding:0;">
-              ${momentos.map((mo, i) => html`
-                <li key=${mo.id || i} style="display:flex;gap:10px;padding-bottom:12px;position:relative;">
-                  <span style="width:24px;height:24px;border-radius:50%;background:${color};color:oklch(20% 0.02 50);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;">${i + 1}</span>
-                  <div style="min-width:0;">
-                    <div style="font-size:14.5px;font-weight:700;color:${TINTA};">${mo.nombre || "Momento " + (i + 1)}${mo.minutos ? html` <span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;color:${TINTA3};">${mo.minutos} min</span>` : ""}</div>
-                    ${mo.detalle && html`<div style="font-size:13.5px;color:${TINTA2};line-height:1.45;margin-top:2px;white-space:pre-wrap;">${mo.detalle}</div>`}
-                  </div>
-                </li>`)}
-            </ol>`}
+          ${momentos.length > 0 && this.renderMomentos(momentos, mins, color)}
         </div>
 
-        <div style="padding:clamp(22px,3.5vw,52px);overflow-y:auto;min-width:0;">
+        <div style="padding:clamp(22px,3.2vw,48px);overflow-y:auto;min-width:0;">
+          <div style="max-width:1150px;">
           ${a.descripcion && html`
-            <div class="dc-pres-cont" dangerouslySetInnerHTML=${{ __html: a.descripcion }} style="font-size:clamp(17px,1.65vw,24px);color:oklch(30% 0.02 55);line-height:1.6;white-space:pre-wrap;"></div>`}
-          ${a.descripcion && a.contenido && html`<div style="height:1px;background:${BORDE};margin:clamp(18px,2.5vw,30px) 0;"></div>`}
+            <section style="margin-bottom:clamp(22px,3vw,36px);">
+              <div style="${SECCION}margin-bottom:10px;">De qué trata la clase</div>
+              <div class="dc-pres-cont" dangerouslySetInnerHTML=${{ __html: a.descripcion }} style="font-size:clamp(17px,1.5vw,22px);color:oklch(28% 0.02 55);line-height:1.65;white-space:pre-wrap;max-width:72ch;"></div>
+            </section>`}
           ${a.contenido && html`
-            <div class="dc-pres-cont" dangerouslySetInnerHTML=${{ __html: a.contenido }} style="font-size:clamp(17px,1.65vw,24px);color:oklch(30% 0.02 55);line-height:1.6;white-space:pre-wrap;"></div>`}
+            <section>
+              <div style="${SECCION}margin-bottom:12px;">Contenido</div>
+              ${this.renderContenido(a.contenido, color)}
+            </section>`}
+          </div>
           ${vacio && html`
             <div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;">
               <div>
