@@ -14,8 +14,9 @@ se sube tal cual a GitHub Pages.
 ```
 index.html            Contenedor único de la app
 app/
-  main.js             Arranque, rutas y avisos de error
+  main.js             Arranque, rutas, avisos de error y pantalla dividida
   rutas.js            Registro de módulos (aquí se agregan módulos nuevos)
+  panel.js            Pantalla dividida: elementos ocultables por módulo y su estado
   firebase.js         Inicializa Firebase (config pública + versión del SDK)
   session.js          Login, registro, perfil y cierre de sesión
   data.js             Datos por usuario en Firestore (watch / saveList)
@@ -24,6 +25,8 @@ app/
   vistas/
     login.js  inicio.js  admin.js
     clases.js  participacion.js  seguimiento.js
+    clases-ia.js        Importar una clase creada con IA (instrucción + lector de la respuesta)
+    config-pantalla.js  Configuración de la pantalla dividida (desde el Inicio)
 vendor/               Preact, hooks y htm (copias locales, ~16 KB)
 firestore.rules       Reglas de seguridad (pegar en la consola de Firebase)
 *.dc.html, login.html, admin.html
@@ -36,6 +39,10 @@ firestore.rules       Reglas de seguridad (pegar en la consola de Firebase)
    `app/vistas/mi-modulo.js` y ajústala.
 2. Añade una entrada en `MODULOS` dentro de `app/rutas.js`.
    Aparece sola en el Inicio y queda disponible en `index.html#/mi-modulo`.
+
+3. Para que funcione en pantalla dividida, añade sus elementos en `ELEMENTOS`
+   (`app/panel.js`) y en la vista usa `static contextType = PanelCtx` y
+   `this.context.ver("mi-modulo", "elemento")` para mostrar u ocultar cada parte.
 
 Para guardar datos, usa `watch([...claves], cb)` y `saveList(clave, lista)`
 de `app/data.js`. Cada clave se guarda en `usuarios/{uid}/datos/{clave}`, y las

@@ -6,6 +6,7 @@ import {
   uid, enFondo, fechaHoyTexto, nombresDeListado, conteoTexto,
   ModuleHeader, Tabs, Cargando, construirGrafico, MiniChart
 } from "../ui.js";
+import { PanelCtx } from "../panel.js";
 
 const TEMA = {
   header: "oklch(26% 0.05 25)", acento: "oklch(52% 0.19 25)",
@@ -60,6 +61,7 @@ function EstadoSelector({ valor, onCambio }) {
 }
 
 export default class Seguimiento extends Component {
+  static contextType = PanelCtx;
   state = {
     loaded: false,
     cursos: [], estudiantes: [], situaciones: [], problematicas: [],
@@ -211,16 +213,19 @@ export default class Seguimiento extends Component {
     };
 
     const viendo = s.viewingId ? s.estudiantes.find(e => e.id === s.viewingId) : null;
+    // En pantalla dividida, solo los elementos que el docente dejó visibles.
+    const v = (el) => this.context.ver("seguimiento", el);
 
     return html`
 <div style="min-height:100vh;background:oklch(96% 0.02 25);display:flex;flex-direction:column;">
 
+  ${v("encabezado") && html`
   <${ModuleHeader} tema=${TEMA} titulo="Seguimiento de Estudiantes">
     <button onClick=${this.openProblematicasModal} style="padding:9px 14px;border-radius:8px;border:1.5px dashed oklch(60% 0.03 25 / 0.5);background:transparent;color:oklch(85% 0.02 25);font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;">Problemáticas</button>
     <button onClick=${this.openEstModal} class="h-bg" style="padding:9px 16px;border-radius:8px;border:none;background:oklch(52% 0.19 25);--hbg:oklch(45% 0.19 25);color:oklch(97% 0.02 25);font-size:13.5px;font-weight:700;cursor:pointer;flex-shrink:0;">+ Estudiante</button>
-  <//>
+  <//>`}
 
-  <${Tabs} tema=${TEMA} tabs=${tabs} activo=${s.view} onSelect=${(id) => this.setState({ view: id })} onAdd=${this.openCursoModal} addLabel="+ Curso"/>
+  ${v("pestanas") && html`<${Tabs} tema=${TEMA} tabs=${tabs} activo=${s.view} onSelect=${(id) => this.setState({ view: id })} onAdd=${this.openCursoModal} addLabel="+ Curso"/>`}
 
   <main style="flex:1;padding:22px clamp(16px,4vw,40px) 60px;max-width:820px;width:100%;margin:0 auto;box-sizing:border-box;">
     ${!s.loaded ? html`<${Cargando} color="oklch(50% 0.02 25)"/>`
@@ -232,6 +237,7 @@ export default class Seguimiento extends Component {
         </div>
       </div>`
     : html`
+      ${v("resumen") && html`
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;">
         <div style="background:oklch(93% 0.06 25);border-radius:8px;padding:12px 14px;">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;color:oklch(45% 0.19 25);line-height:1;">${rojo}</div>
@@ -245,11 +251,11 @@ export default class Seguimiento extends Component {
           <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;color:oklch(38% 0.1 145);line-height:1;">${verde}</div>
           <div style="font-size:11px;color:oklch(40% 0.08 145);margin-top:5px;font-weight:600;">🟢 sin novedad</div>
         </div>
-      </div>
+      </div>`}
 
-      <div style="display:flex;gap:8px;margin-bottom:14px;">${subBtn("listado", "Listado")}${subBtn("ranking", "Ranking")}</div>
+      ${v("vistas") && html`<div style="display:flex;gap:8px;margin-bottom:14px;">${subBtn("listado", "Listado")}${subBtn("ranking", "Ranking")}</div>`}
 
-      ${estudiantesVista.length > 0 ? html`
+      ${estudiantesVista.length > 0 ? v("buscador") && html`
         <input type="text" value=${s.search} onInput=${(e) => this.setState({ search: e.target.value })} placeholder="Buscar estudiante…" style="width:100%;padding:10px 14px;border:1.5px solid oklch(85% 0.02 20);border-radius:8px;font-size:14px;box-sizing:border-box;background:oklch(99% 0.005 25);color:oklch(26% 0.03 20);margin-bottom:14px;"/>`
       : html`
         <div style="text-align:center;padding:52px 20px;">

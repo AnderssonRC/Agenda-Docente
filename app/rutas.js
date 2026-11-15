@@ -9,8 +9,8 @@
 export const MODULOS = [
   {
     ruta: "clases",
-    titulo: "Creación de Clases",
-    descripcion: "Planifica el contenido, materiales y horarios de tus clases.",
+    titulo: "Diseño de Clase",
+    descripcion: "Diseña tus clases: momentos, contenido, recursos y presentación.",
     emoji: "📘", tag: "Planeación",
     band: "linear-gradient(135deg, oklch(72% 0.1 60), oklch(62% 0.11 48))",
     tagColor: "oklch(45% 0.11 48)",

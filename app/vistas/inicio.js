@@ -3,7 +3,8 @@ import { html, useState, useEffect } from "../lib.js";
 import { watch } from "../data.js";
 import { cerrarSesion } from "../session.js";
 import { MODULOS } from "../rutas.js";
-import { css, AboutModal } from "../ui.js";
+import { css, AboutModal, ICONO_DIVIDIR } from "../ui.js";
+import ConfigPantalla from "./config-pantalla.js";
 
 css("v-inicio", `
   .statcard{transition:transform .16s, box-shadow .16s;}
@@ -43,6 +44,7 @@ export default function Inicio({ sesion }) {
   const isAdmin = sesion.esAdmin;
   const [menu, setMenu] = useState(false);
   const [about, setAbout] = useState(false);
+  const [configDiv, setConfigDiv] = useState(false);
   const [cont, setCont] = useState(null);
 
   useEffect(() => watch(["materias", "actividades", "seguimiento_estudiantes"], d => setCont({
@@ -65,7 +67,7 @@ export default function Inicio({ sesion }) {
   const v = (n) => cont ? String(n) : "–";
   const stats = [
     { emoji: "📚", valor: v(cont && cont.materias), label: "Asignaturas", tint: "oklch(88% 0.05 55)" },
-    { emoji: "📝", valor: v(cont && cont.actividades), label: "Planeaciones planificadas", tint: "oklch(86% 0.06 40)" },
+    { emoji: "📝", valor: v(cont && cont.actividades), label: "Clases diseñadas", tint: "oklch(86% 0.06 40)" },
     { emoji: "👥", valor: v(cont && cont.estudiantes), label: "Seguimientos de estudiantes", tint: "oklch(88% 0.055 70)" }
   ];
 
@@ -98,6 +100,12 @@ export default function Inicio({ sesion }) {
             Administrar usuarios
           </a>
           <div class="sep"></div>`}
+        <div style="padding:6px 12px 2px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:oklch(55% 0.02 55);">Configuración</div>
+        <button onClick=${() => { setMenu(false); setConfigDiv(true); }}>
+          <span style="color:oklch(48% 0.09 50);display:flex;flex:none;">${ICONO_DIVIDIR}</span>
+          Pantalla dividida
+        </button>
+        <div class="sep"></div>
         <button onClick=${cerrarSesion}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="color:oklch(50% 0.12 25);flex:none;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Cerrar sesión
@@ -159,5 +167,6 @@ export default function Inicio({ sesion }) {
   </footer>
 
   <${AboutModal} abierto=${about} onCerrar=${() => setAbout(false)}/>
+  ${configDiv && html`<${ConfigPantalla} onCerrar=${() => setConfigDiv(false)}/>`}
 </div>`;
 }

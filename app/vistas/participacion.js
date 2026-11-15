@@ -6,6 +6,7 @@ import {
   uid, localDateStr, todayLocal, enFondo, nombresDeListado, conteoTexto,
   ModuleHeader, Tabs, Cargando, construirGrafico, MiniChart
 } from "../ui.js";
+import { PanelCtx } from "../panel.js";
 
 const TEMA = {
   header: "oklch(28% 0.06 240)", acento: "oklch(60% 0.16 235)",
@@ -27,6 +28,7 @@ const MODAL_CAJA = "background:oklch(99% 0.005 230);width:100%;max-width:420px;b
 const MODAL_TITULO = "font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-bottom:16px;color:oklch(26% 0.03 240);";
 
 export default class Participacion extends Component {
+  static contextType = PanelCtx;
   state = {
     loaded: false,
     cursos: [], estudiantes: [], registros: [],
@@ -136,15 +138,18 @@ export default class Participacion extends Component {
     const q = s.search.trim().toLowerCase();
     const filtrados = q ? estudiantesVista.filter(e => e.nombre.toLowerCase().includes(q)) : estudiantesVista;
     const viendo = s.viewingId ? s.estudiantes.find(e => e.id === s.viewingId) : null;
+    // En pantalla dividida, solo los elementos que el docente dejó visibles.
+    const v = (el) => this.context.ver("participacion", el);
 
     return html`
 <div style="min-height:100vh;background:oklch(96% 0.02 230);display:flex;flex-direction:column;">
 
+  ${v("encabezado") && html`
   <${ModuleHeader} tema=${TEMA} titulo="Participación de Clase">
     <button onClick=${this.openEstModal} class="h-bg" style="padding:9px 16px;border-radius:8px;border:none;background:oklch(60% 0.16 235);--hbg:oklch(68% 0.16 235);color:oklch(15% 0.03 240);font-size:13.5px;font-weight:700;cursor:pointer;flex-shrink:0;">+ Estudiante</button>
-  <//>
+  <//>`}
 
-  <${Tabs} tema=${TEMA} tabs=${tabs} activo=${s.view} onSelect=${(id) => this.setState({ view: id })} onAdd=${this.openCursoModal} addLabel="+ Curso"/>
+  ${v("pestanas") && html`<${Tabs} tema=${TEMA} tabs=${tabs} activo=${s.view} onSelect=${(id) => this.setState({ view: id })} onAdd=${this.openCursoModal} addLabel="+ Curso"/>`}
 
   <main style="flex:1;padding:22px clamp(16px,4vw,40px) 60px;max-width:820px;width:100%;margin:0 auto;box-sizing:border-box;">
     ${!s.loaded ? html`<${Cargando} color="oklch(50% 0.02 230)"/>`
@@ -156,19 +161,20 @@ export default class Participacion extends Component {
         </div>
       </div>`
     : html`
+      ${v("resumen") && html`
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:22px;">
         ${[[estudiantesVista.length, "estudiantes"], [puntosHoy, "puntos otorgados hoy"]].map(([n, l]) => html`
           <div style="background:oklch(92% 0.02 225);border-radius:8px;padding:12px 14px;">
             <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500;color:oklch(30% 0.05 235);line-height:1;">${n}</div>
             <div style="font-size:11px;color:oklch(45% 0.02 235);margin-top:5px;font-weight:600;">${l}</div>
           </div>`)}
-      </div>
+      </div>`}
 
       ${estudiantesVista.length === 0 ? html`
         <div style="text-align:center;padding:52px 20px;">
           <span style="display:inline-block;font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:oklch(50% 0.02 230);border:1.5px dashed oklch(85% 0.02 225);border-radius:8px;padding:12px 22px;">Aún no hay estudiantes en este listado</span>
         </div>`
-      : html`
+      : v("buscador") && html`
         <input type="text" value=${s.search} onInput=${(e) => this.setState({ search: e.target.value })} placeholder="Buscar estudiante…" style="width:100%;padding:10px 14px;border:1.5px solid oklch(85% 0.02 225);border-radius:8px;font-size:14px;box-sizing:border-box;background:oklch(99% 0.005 230);color:oklch(26% 0.03 240);margin-bottom:14px;"/>`}
 
       ${q && estudiantesVista.length > 0 && filtrados.length === 0 && html`
@@ -180,9 +186,9 @@ export default class Participacion extends Component {
         const curso = cursoPorId.get(e.cursoId);
         return html`
         <div key=${e.id} style="display:flex;align-items:center;gap:10px;background:oklch(99% 0.005 230);border:1px solid oklch(88% 0.02 225);border-left:5px solid ${curso ? curso.color : "oklch(80% 0.02 225)"};border-radius:10px;padding:10px 14px;margin-bottom:8px;">
-          <button onClick=${() => this.registrarPuntos(e.id, -1)} class="h-bg" style="width:30px;height:30px;border-radius:50%;border:1.5px solid oklch(55% 0.18 25);background:transparent;--hbg:oklch(93% 0.05 25);color:oklch(45% 0.18 25);font-size:17px;font-weight:700;cursor:pointer;flex-shrink:0;">−</button>
+          ${v("botones") && html`<button onClick=${() => this.registrarPuntos(e.id, -1)} class="h-bg" style="width:30px;height:30px;border-radius:50%;border:1.5px solid oklch(55% 0.18 25);background:transparent;--hbg:oklch(93% 0.05 25);color:oklch(45% 0.18 25);font-size:17px;font-weight:700;cursor:pointer;flex-shrink:0;">−</button>`}
           <div style="width:44px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:oklch(28% 0.03 240);flex-shrink:0;">${e.puntosTotales || 0}</div>
-          <button onClick=${() => this.registrarPuntos(e.id, 1)} class="h-bg" style="width:30px;height:30px;border-radius:50%;border:1.5px solid oklch(48% 0.13 150);background:transparent;--hbg:oklch(93% 0.05 150);color:oklch(40% 0.13 150);font-size:17px;font-weight:700;cursor:pointer;flex-shrink:0;">+</button>
+          ${v("botones") && html`<button onClick=${() => this.registrarPuntos(e.id, 1)} class="h-bg" style="width:30px;height:30px;border-radius:50%;border:1.5px solid oklch(48% 0.13 150);background:transparent;--hbg:oklch(93% 0.05 150);color:oklch(40% 0.13 150);font-size:17px;font-weight:700;cursor:pointer;flex-shrink:0;">+</button>`}
           <div onClick=${() => this.openSlide(e.id)} style="flex:1;min-width:0;cursor:pointer;padding:2px 4px;">
             <div style="font-size:14.5px;font-weight:700;color:oklch(26% 0.03 240);">${e.nombre}</div>
             ${s.view === "todos" && html`<div style="font-size:11.5px;color:oklch(50% 0.02 230);margin-top:1px;">${curso ? curso.nombre : ""}</div>`}

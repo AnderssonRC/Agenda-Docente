@@ -1,5 +1,7 @@
 // ui.js — utilidades y piezas de interfaz compartidas por los módulos.
-import { html } from "./lib.js";
+import { html, useState, useContext, useEffect } from "./lib.js";
+import { MODULOS } from "./rutas.js";
+import { PanelCtx, abrirDivision, cerrarDivision, ANCHO_DIVISION } from "./panel.js";
 
 /* ---------- utilidades ---------- */
 
@@ -39,20 +41,65 @@ export const enFondo = (fn) => (e) => { if (e.target === e.currentTarget) fn(); 
 /* ---------- encabezado y pestañas de módulo ---------- */
 // `tema` define los colores de cada módulo (ver TEMA en cada vista).
 
+css("ui-base", `
+  .solo-amplio{display:none!important;}
+  @media (min-width:${ANCHO_DIVISION}px){ .solo-amplio{display:flex!important;} }
+  .menu-div button:hover{background:oklch(94% 0.02 65);}
+`);
+
+/** Icono de pantalla dividida (dos paneles). */
+export const ICONO_DIVIDIR = html`<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="2"/><path d="M12 4v16" stroke="currentColor" stroke-width="2"/></svg>`;
+
+/** Botón "Dividir pantalla": elige qué otro módulo abrir al lado. Solo tablet/computador. */
+function BotonDividir({ tema }) {
+  const ctx = useContext(PanelCtx);
+  const [abierto, setAbierto] = useState(false);
+  useEffect(() => {
+    if (!abierto) return;
+    const f = (e) => { if (!e.target.closest(".menu-div-wrap")) setAbierto(false); };
+    document.addEventListener("click", f);
+    return () => document.removeEventListener("click", f);
+  }, [abierto]);
+  const otros = MODULOS.filter(m => m.ruta !== ctx.ruta);
+  return html`
+    <div class="menu-div-wrap solo-amplio" style="position:relative;flex-shrink:0;">
+      <button onClick=${() => setAbierto(a => !a)} title="Dividir pantalla" aria-label="Dividir pantalla" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1.5px solid ${tema.sub};background:transparent;color:${tema.volver};font-size:13px;font-weight:600;cursor:pointer;">
+        ${ICONO_DIVIDIR}<span>Dividir</span>
+      </button>
+      ${abierto && html`
+        <div class="menu-div" style="position:absolute;right:0;top:calc(100% + 8px);min-width:240px;background:oklch(99% 0.005 75);border:1px solid oklch(86% 0.02 60);border-radius:12px;padding:6px;box-shadow:0 16px 40px oklch(30% 0.04 50 / 0.25);z-index:80;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:oklch(50% 0.02 55);padding:8px 10px 6px;">Abrir al lado</div>
+          ${otros.map(m => html`
+            <button onClick=${() => { setAbierto(false); abrirDivision(m.ruta); }} style="width:100%;display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:oklch(32% 0.03 50);text-align:left;">
+              <span style="font-size:18px;">${m.emoji}</span>${m.titulo}
+            </button>`)}
+          <div style="font-size:11.5px;color:oklch(55% 0.02 55);padding:6px 10px 6px;line-height:1.4;">Los elementos visibles se configuran en el Inicio → menú del avatar → Pantalla dividida.</div>
+        </div>`}
+    </div>`;
+}
+
 export function ModuleHeader({ tema, titulo, children }) {
+  const ctx = useContext(PanelCtx);
   return html`
     <header style="background:${tema.header};padding:14px clamp(16px,4vw,40px);">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <a href="#/" class="h-c" style="display:flex;align-items:center;gap:6px;color:${tema.volver};--hc:${tema.volverHover};font-size:14px;font-weight:600;flex-shrink:0;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Volver
-        </a>
-        <img src="logo-192.png" alt="Agenda Docente" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0;"/>
+        ${ctx.secundario ? html`
+          <button onClick=${cerrarDivision} class="h-c" style="display:flex;align-items:center;gap:6px;color:${tema.volver};--hc:${tema.volverHover};font-size:14px;font-weight:600;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;font-family:inherit;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+            Cerrar panel
+          </button>`
+        : html`
+          <a href="#/" class="h-c" style="display:flex;align-items:center;gap:6px;color:${tema.volver};--hc:${tema.volverHover};font-size:14px;font-weight:600;flex-shrink:0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Volver
+          </a>`}
+        ${!ctx.dividido && html`<img src="logo-192.png" alt="Agenda Docente" style="width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0;"/>`}
         <div style="flex:1;min-width:120px;">
           <div style="font-family:'Fraunces',serif;font-size:clamp(18px,3vw,21px);font-weight:600;color:${tema.titulo};line-height:1.2;">${titulo}</div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:${tema.sub};margin-top:2px;">${fechaHoyTexto()}</div>
         </div>
         ${children}
+        ${!ctx.secundario && html`<${BotonDividir} tema=${tema}/>`}
       </div>
     </header>`;
 }
